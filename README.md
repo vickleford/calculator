@@ -78,3 +78,5 @@ Rel(api, store, "Stores results")
 ## Generating Protos
 
 Run `make proto` to regenerate the protos.
+
+# prove linter enforced...
