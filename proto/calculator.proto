@@ -3,7 +3,7 @@ package calculator;
 
 import "google/longrunning/operations.proto";
 
-option go_package = "github.com/vickleford/calculator/pb";
+option go_package = "github.com/vickleford/calculator/internal/pb";
 
 service Calculations {
   // FibonacciOf calculates the number at the Nth position in the sequence.
