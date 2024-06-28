@@ -2,6 +2,7 @@ syntax = "proto3";
 package calculator;
 
 import "google/longrunning/operations.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vickleford/calculator/internal/pb";
 
@@ -46,6 +47,9 @@ message FibonacciOfResponse {
   int64 result = 3;
 }
 
-// TODO.
+// TODO. Either take inspiration from google.api.servicemanagement.v1 or reuse
+// it.
 message CalculationMetadata {
+  google.protobuf.Timestamp created = 1;
+  google.protobuf.Timestamp started = 2;
 }
