@@ -1,0 +1,51 @@
+syntax = "proto3";
+package calculator;
+
+import "google/longrunning/operations.proto";
+
+option go_package = "github.com/vickleford/calculator/internal/pb";
+
+service Calculations {
+  // FibonacciOf calculates the number at the Nth position in the sequence.
+  rpc FibonacciOf(FibonacciOfRequest) returns (google.longrunning.Operation) {
+    option (google.longrunning.operation_info) = {
+      response_type: "FibonacciOfResponse"
+      metadata_type: "CalculationMetadata"
+    };
+  }
+
+  // GetOperation returns an operation representing a calculation.
+  rpc GetOperation(google.longrunning.GetOperationRequest) 
+    returns (google.longrunning.Operation) {}
+
+  // ListOperations returns all the known operations.
+  rpc ListOperations(google.longrunning.ListOperationsRequest)
+    returns (google.longrunning.ListOperationsResponse) {}
+
+  // WaitOperation waits for the operation to complete up to a timeout. It is
+  // best-effort.
+  rpc WaitOperation(google.longrunning.WaitOperationRequest)
+    returns (google.longrunning.Operation) {}
+}
+
+message FibonacciOfRequest {
+  // start defines the starting number of the sequence. It is commonly 0 or 1.
+  int64 start = 1;
+  // nth_position defines the Nth position of the sequence to calculate the
+  // number of. The first number in the sequence is at position 1.
+  int64 nth_position = 2;
+}
+
+message FibonacciOfResponse {
+  // start declares the starting number of the sequence.
+  int64 start = 1;
+  // nth_position indexes the calculated fibonacci number at this position
+  // starting at 1.
+  int64 nth_position = 2;
+  // result is the calculated fibonacci number at the requested position.
+  int64 result = 3;
+}
+
+// TODO.
+message CalculationMetadata {
+}
