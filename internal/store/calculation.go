@@ -25,7 +25,7 @@ type FibonacciOfResult struct {
 type Calculation struct {
 	Name     string              `json:"name"`
 	Metadata CalculationMetadata `json:"metadata"`
-	Done     bool                `json:"bool"`
+	Done     bool                `json:"done"`
 
 	// Error is mutually exclusive with Response. It should only be set whe done
 	// is true.
