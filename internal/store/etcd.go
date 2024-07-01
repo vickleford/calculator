@@ -14,16 +14,16 @@ type etcdClient interface {
 	Txn(context.Context) clientv3.Txn
 }
 
-type EtcdClient struct {
+type CalculationStore struct {
 	cli etcdClient
 }
 
-func NewEtcdClient(cli etcdClient) *EtcdClient {
-	return &EtcdClient{cli: cli}
+func NewCalculationStore(cli etcdClient) *CalculationStore {
+	return &CalculationStore{cli: cli}
 }
 
-// SaveCalculation saves or updates a Calculation in etcd.
-func (c *EtcdClient) SaveCalculation(ctx context.Context, calculation Calculation) error {
+// Save saves or updates a Calculation in etcd.
+func (c *CalculationStore) Save(ctx context.Context, calculation Calculation) error {
 	key := CalculationKey(calculation)
 
 	value, err := json.Marshal(calculation)

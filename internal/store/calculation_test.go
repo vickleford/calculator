@@ -97,7 +97,7 @@ func (s *etcdClientSpy) Commit() (*clientv3.TxnResponse, error) {
 func TestSaveCalculation_WhenKeyDoesNotExist(t *testing.T) {
 	spy := NewETCDClientSpy()
 	spy.ReturnGetResponse = &clientv3.GetResponse{Count: 0}
-	client := store.NewEtcdClient(spy)
+	client := store.NewCalculationStore(spy)
 
 	calculation := store.Calculation{
 		Name: "some-operation-name",
@@ -108,7 +108,7 @@ func TestSaveCalculation_WhenKeyDoesNotExist(t *testing.T) {
 
 	expectedKey := store.CalculationKey(calculation)
 
-	if err := client.SaveCalculation(context.Background(), calculation); err != nil {
+	if err := client.Save(context.Background(), calculation); err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
 
@@ -146,11 +146,11 @@ func TestSaveCalculation_WhenKeyExists(t *testing.T) {
 	spy.ReturnTxnResponse = &clientv3.TxnResponse{
 		Succeeded: true,
 	}
-	client := store.NewEtcdClient(spy)
+	client := store.NewCalculationStore(spy)
 
 	spy.ShouldTxnIfSucceed = true
 
-	if err := client.SaveCalculation(context.Background(), calculation); err != nil {
+	if err := client.Save(context.Background(), calculation); err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
 
