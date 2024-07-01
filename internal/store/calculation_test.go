@@ -95,8 +95,9 @@ func (s *etcdClientSpy) Commit() (*clientv3.TxnResponse, error) {
 }
 
 func TestSaveCalculation_WhenKeyDoesNotExist(t *testing.T) {
-	cli := NewETCDClientSpy()
-	cli.ReturnGetResponse = &clientv3.GetResponse{Count: 0}
+	spy := NewETCDClientSpy()
+	spy.ReturnGetResponse = &clientv3.GetResponse{Count: 0}
+	client := store.NewEtcdClient(spy)
 
 	calculation := store.Calculation{
 		Name: "some-operation-name",
@@ -105,18 +106,20 @@ func TestSaveCalculation_WhenKeyDoesNotExist(t *testing.T) {
 		},
 	}
 
-	if err := calculation.Save(context.Background(), cli); err != nil {
+	expectedKey := store.CalculationKey(calculation)
+
+	if err := client.SaveCalculation(context.Background(), calculation); err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
 
-	t.Logf("puts: %#v", cli.WritesSeenByPut)
+	t.Logf("puts: %#v", spy.WritesSeenByPut)
 
-	if len(cli.WritesSeenByPut) != 1 {
-		t.Fatalf("got %d writes to put", len(cli.WritesSeenByPut))
+	if len(spy.WritesSeenByPut) != 1 {
+		t.Fatalf("got %d writes to put", len(spy.WritesSeenByPut))
 	}
 
-	if _, ok := cli.WritesSeenByPut[calculation.Key()]; !ok {
-		t.Errorf("did not see a write to key %q", calculation.Key())
+	if _, ok := spy.WritesSeenByPut[expectedKey]; !ok {
+		t.Errorf("did not see a write to key %q", expectedKey)
 	}
 }
 
@@ -128,41 +131,42 @@ func TestSaveCalculation_WhenKeyExists(t *testing.T) {
 		},
 	}
 
-	cli := NewETCDClientSpy()
-	cli.ReturnGetResponse = &clientv3.GetResponse{
+	expectedKey := store.CalculationKey(calculation)
+
+	spy := NewETCDClientSpy()
+	spy.ReturnGetResponse = &clientv3.GetResponse{
 		Count: 1,
 		Kvs: []*mvccpb.KeyValue{
 			{
-				Key:     []byte(calculation.Key()),
+				Key:     []byte(expectedKey),
 				Version: 428922,
 			},
 		},
 	}
-	cli.ReturnTxnResponse = &clientv3.TxnResponse{
+	spy.ReturnTxnResponse = &clientv3.TxnResponse{
 		Succeeded: true,
 	}
+	client := store.NewEtcdClient(spy)
 
-	cli.ShouldTxnIfSucceed = true
+	spy.ShouldTxnIfSucceed = true
 
-	if err := calculation.Save(context.Background(), cli); err != nil {
+	if err := client.SaveCalculation(context.Background(), calculation); err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
 
-	expectedKey := calculation.Key()
-
-	if len(cli.ComparisonsSeenByIf) != 1 {
-		t.Errorf("unexpected if comparisons: %#v", cli.ComparisonsSeenByIf)
+	if len(spy.ComparisonsSeenByIf) != 1 {
+		t.Errorf("unexpected if comparisons: %#v", spy.ComparisonsSeenByIf)
 	} else {
-		actual := cli.ComparisonsSeenByIf[0]
+		actual := spy.ComparisonsSeenByIf[0]
 		if string(actual.Key) != expectedKey {
 			t.Errorf("saw key %q but expected %q", actual.Key, expectedKey)
 		}
 	}
 
-	if len(cli.OperationsSeenByThen) != 1 {
-		t.Errorf("saw %d operations", len(cli.OperationsSeenByThen))
+	if len(spy.OperationsSeenByThen) != 1 {
+		t.Errorf("saw %d operations", len(spy.OperationsSeenByThen))
 	} else {
-		actual := cli.OperationsSeenByThen[0]
+		actual := spy.OperationsSeenByThen[0]
 		if !actual.IsPut() {
 			t.Errorf("expected a PUT operation")
 		}
@@ -170,5 +174,4 @@ func TestSaveCalculation_WhenKeyExists(t *testing.T) {
 			t.Errorf("expected key %q but saw %q", expectedKey, key)
 		}
 	}
-
 }

@@ -14,37 +14,47 @@ type etcdClient interface {
 	Txn(context.Context) clientv3.Txn
 }
 
-// Save creates or updates a Calculation in etcd.
-func (c Calculation) Save(ctx context.Context, store etcdClient) error {
-	value, err := json.Marshal(c)
+type EtcdClient struct {
+	cli etcdClient
+}
+
+func NewEtcdClient(cli etcdClient) *EtcdClient {
+	return &EtcdClient{cli: cli}
+}
+
+// SaveCalculation saves or updates a Calculation in etcd.
+func (c *EtcdClient) SaveCalculation(ctx context.Context, calculation Calculation) error {
+	key := CalculationKey(calculation)
+
+	value, err := json.Marshal(calculation)
 	if err != nil {
-		return fmt.Errorf("unable to marshal calculation %q to JSON: %w", c.Name, err)
+		return fmt.Errorf("unable to marshal calculation %q to JSON: %w", calculation.Name, err)
 	}
 
-	getResp, err := store.Get(ctx, c.Key())
+	getResp, err := c.cli.Get(ctx, key)
 	if err != nil {
 		return fmt.Errorf("unable to get key: %w", err)
 	}
 
 	if getResp.Count == 0 {
-		_, err := store.Put(ctx, c.Key(), string(value))
+		_, err := c.cli.Put(ctx, key, string(value))
 		if err != nil {
-			return fmt.Errorf("error writing key %q: %w", c.Key(), err)
+			return fmt.Errorf("error writing key %q: %w", key, err)
 		}
 
 		return nil
 	}
 
 	if getResp.Count > 1 {
-		return fmt.Errorf("key %q is a prefix", c.Key())
+		return fmt.Errorf("key %q is a prefix", key)
 	}
 
 	kv := getResp.Kvs[0]
 
-	txResp, err := store.Txn(ctx).If(
-		clientv3.Compare(clientv3.Version(c.Key()), "=", kv.Version),
+	txResp, err := c.cli.Txn(ctx).If(
+		clientv3.Compare(clientv3.Version(key), "=", kv.Version),
 	).Then(
-		clientv3.OpPut(c.Key(), string(value)),
+		clientv3.OpPut(key, string(value)),
 	).Commit()
 	if err != nil {
 		return fmt.Errorf("transaction error: %w", err)
@@ -55,6 +65,6 @@ func (c Calculation) Save(ctx context.Context, store etcdClient) error {
 	return nil
 }
 
-func (c Calculation) Key() string {
-	return fmt.Sprintf("calculations/%s", c.Name)
+func CalculationKey(calculation Calculation) string {
+	return fmt.Sprintf("calculations/%s", calculation.Name)
 }
