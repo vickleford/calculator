@@ -262,7 +262,7 @@ func TestCreateCalculation_WhenKeyAlreadyExists(t *testing.T) {
 func TestIntegration_CreateCalculation(t *testing.T) {
 	etcdEndpoint := os.Getenv("ETCD_ENDPOINT")
 	if etcdEndpoint == "" {
-		t.Skip("set ETCD_ENDPOINT to run this test")
+		t.Skip(`set ETCD_ENDPOINT to run this test, e.g. ETCD_ENDPOINT="localhost:2379"`)
 	}
 
 	calculation := store.Calculation{
