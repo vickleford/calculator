@@ -12,9 +12,9 @@ import (
 	"github.com/vickleford/calculator/internal/store"
 )
 
-type SaveFunc func(context.Context, store.Calculation) error
+type CreateFunc func(context.Context, store.Calculation) error
 
-func (f SaveFunc) Save(ctx context.Context, c store.Calculation) error {
+func (f CreateFunc) Create(ctx context.Context, c store.Calculation) error {
 	return f(ctx, c)
 }
 
@@ -37,11 +37,11 @@ func (q *workQ) PublishJSON(ctx context.Context, msg []byte) error {
 func TestFibonacciOf_Create(t *testing.T) {
 	queue := &workQ{}
 
-	var saveCalled bool
+	var createCalled bool
 
 	server := apiserver.NewCalculations(
-		SaveFunc(func(ctx context.Context, c store.Calculation) error {
-			saveCalled = true
+		CreateFunc(func(ctx context.Context, c store.Calculation) error {
+			createCalled = true
 			return nil
 		}),
 		queue,
@@ -55,8 +55,8 @@ func TestFibonacciOf_Create(t *testing.T) {
 		t.Errorf("unexpected error: %s", err)
 	}
 
-	if !saveCalled {
-		t.Error("expected save to be called")
+	if !createCalled {
+		t.Error("expected Create to be called")
 	}
 
 	storeUUID, err := uuid.Parse(response.Name)

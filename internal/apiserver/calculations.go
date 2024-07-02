@@ -3,6 +3,7 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 
 	"cloud.google.com/go/longrunning/autogen/longrunningpb"
@@ -24,7 +25,7 @@ type Calculations struct {
 }
 
 type datastore interface {
-	Save(context.Context, store.Calculation) error
+	Create(context.Context, store.Calculation) error
 }
 
 type workqueue interface {
@@ -68,10 +69,12 @@ func (c *Calculations) FibonacciOf(
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	// TODO: this is incorrect. It shouldn't create or update. It should create
-	// or error. When it errors, it should generate a new name and try again. If
-	// it still doesn't work, return an error.
-	if err := c.store.Save(ctx, calculation); err != nil {
+	// TODO: When it errors, it should generate a new name and try again. If it
+	// still doesn't work, return an error.
+	if err := c.store.Create(ctx, calculation); errors.Is(err, store.ErrKeyAlreadyExists) {
+		log.Printf("tried to create calculation %s but it already exists", calculation.Name)
+		return nil, status.Error(codes.AlreadyExists, "already exists")
+	} else if err != nil {
 		log.Printf("error saving calculation: %s", err)
 		return nil, status.Error(codes.Internal, "internal error")
 	}
