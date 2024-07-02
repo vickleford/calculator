@@ -3,6 +3,7 @@ package workqueue_test
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
@@ -11,7 +12,12 @@ import (
 	"github.com/vickleford/calculator/internal/workqueue"
 )
 
-func TestProducer_PublishJSON(t *testing.T) {
+func TestIntegration_Producer_PublishJSON(t *testing.T) {
+	rmqURL := os.Getenv("RMQ_URL")
+	if rmqURL == "" {
+		t.Skip(`set RMQ_URL to run this test, e.g. RMQ_URL="amqp://guest:guest@localhost:5672/"`)
+	}
+
 	type message struct {
 		Hello string `json:"hello"`
 		ID    string `json:"id"`
