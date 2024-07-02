@@ -59,7 +59,8 @@ func TestFibonacciOf_Create(t *testing.T) {
 		t.Error("expected save to be called")
 	}
 
-	if _, err := uuid.Parse(response.Name); err != nil {
+	storeUUID, err := uuid.Parse(response.Name)
+	if err != nil {
 		t.Errorf("name is not a uuid or can't parse: %s", err)
 	}
 
@@ -68,7 +69,13 @@ func TestFibonacciOf_Create(t *testing.T) {
 		t.Errorf("published message was not a calculation")
 	}
 
-	if _, err := uuid.Parse(calculation.Name); err != nil {
+	msgUUID, err := uuid.Parse(calculation.Name)
+	if err != nil {
 		t.Errorf("expected a UUID name")
+	}
+
+	if storeUUID != msgUUID {
+		t.Errorf("message UUID %q and store UUID %q must be the same",
+			msgUUID, storeUUID)
 	}
 }
