@@ -2,9 +2,12 @@ package store_test
 
 import (
 	"context"
+	"errors"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/vickleford/calculator/internal/store"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -173,5 +176,127 @@ func TestSaveCalculation_WhenKeyExists(t *testing.T) {
 		if key := string(actual.KeyBytes()); key != expectedKey {
 			t.Errorf("expected key %q but saw %q", expectedKey, key)
 		}
+	}
+}
+
+func TestCreateCalculation_WhenKeyDoesNotExist(t *testing.T) {
+	calculation := store.Calculation{
+		Name: "some-operation-name",
+		Metadata: store.CalculationMetadata{
+			Created: time.Now(),
+		},
+	}
+
+	expectedKey := store.CalculationKey(calculation)
+
+	spy := NewETCDClientSpy()
+	spy.ShouldTxnIfSucceed = true
+	spy.ReturnTxnResponse = &clientv3.TxnResponse{
+		Succeeded: true,
+	}
+
+	client := store.NewCalculationStore(spy)
+
+	if err := client.Create(context.Background(), calculation); err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	if len(spy.ComparisonsSeenByIf) != 1 {
+		t.Errorf("unexpected if comparisons: %#v", spy.ComparisonsSeenByIf)
+	} else {
+		actual := spy.ComparisonsSeenByIf[0]
+		if string(actual.Key) != expectedKey {
+			t.Errorf("saw key %q but expected %q", actual.Key, expectedKey)
+		}
+	}
+
+	if len(spy.OperationsSeenByThen) != 1 {
+		t.Errorf("saw %d operations", len(spy.OperationsSeenByThen))
+	} else {
+		actual := spy.OperationsSeenByThen[0]
+		if !actual.IsPut() {
+			t.Errorf("expected a PUT operation")
+		}
+		if key := string(actual.KeyBytes()); key != expectedKey {
+			t.Errorf("expected key %q but saw %q", expectedKey, key)
+		}
+	}
+}
+
+func TestCreateCalculation_WhenKeyAlreadyExists(t *testing.T) {
+	calculation := store.Calculation{
+		Name: "some-operation-name",
+		Metadata: store.CalculationMetadata{
+			Created: time.Now(),
+		},
+	}
+
+	expectedKey := store.CalculationKey(calculation)
+
+	spy := NewETCDClientSpy()
+	spy.ShouldTxnIfSucceed = false
+	spy.ReturnTxnResponse = &clientv3.TxnResponse{
+		Succeeded: false,
+	}
+
+	client := store.NewCalculationStore(spy)
+	if err := client.Create(context.Background(), calculation); !errors.Is(err, store.ErrKeyAlreadyExists) {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	if len(spy.ComparisonsSeenByIf) != 1 {
+		t.Errorf("unexpected if comparisons: %#v", spy.ComparisonsSeenByIf)
+	} else {
+		actual := spy.ComparisonsSeenByIf[0]
+		if string(actual.Key) != expectedKey {
+			t.Errorf("saw key %q but expected %q", actual.Key, expectedKey)
+		}
+	}
+
+	if len(spy.OperationsSeenByThen) != 0 {
+		t.Errorf("should not have executed then but saw %d operations",
+			len(spy.OperationsSeenByThen))
+	}
+}
+
+func TestIntegration_CreateCalculation(t *testing.T) {
+	etcdEndpoint := os.Getenv("ETCD_ENDPOINT")
+	if etcdEndpoint == "" {
+		t.Skip("set ETCD_ENDPOINT to run this test")
+	}
+
+	calculation := store.Calculation{
+		Name: uuid.New().String(),
+		Metadata: store.CalculationMetadata{
+			Created: time.Now(),
+		},
+	}
+
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{etcdEndpoint},
+		DialTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("unable to set up client: %s", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	datastore := store.NewCalculationStore(cli)
+
+	if err := datastore.Create(ctx, calculation); err != nil {
+		t.Errorf("unable to create calculation: %s", err)
+	}
+
+	err = datastore.Create(ctx, calculation)
+	if !errors.Is(err, store.ErrKeyAlreadyExists) {
+		t.Errorf("expected key to already exist but got %#v", err)
+	}
+
+	key := store.CalculationKey(calculation)
+	_, err = cli.Delete(ctx, key)
+	if err != nil {
+		t.Logf("error deleting key %q", key)
 	}
 }

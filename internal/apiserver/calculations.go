@@ -79,7 +79,7 @@ func (c *Calculations) FibonacciOf(
 	if err := c.fibOfWorkQ.PublishJSON(ctx, calculationJSON); err != nil {
 		// TODO: We need to additionally consider cleanup of the calculation in
 		// the store, and furthermore what happens if that fails.
-		log.Printf("error creating workQueue for %s: %s", calculation.Name, err)
+		log.Printf("error publishing to workQueue for %s: %s", calculation.Name, err)
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
