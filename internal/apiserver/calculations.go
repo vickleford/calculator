@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 
 	"cloud.google.com/go/longrunning/autogen/longrunningpb"
@@ -18,15 +19,23 @@ var _ pb.CalculationsServer = &Calculations{}
 
 type Calculations struct {
 	pb.UnimplementedCalculationsServer
-	store datastore
+	store      datastore
+	fibOfWorkQ workqueue
 }
 
 type datastore interface {
 	Save(context.Context, store.Calculation) error
 }
 
-func NewCalculations(store datastore) *Calculations {
-	return &Calculations{store: store}
+type workqueue interface {
+	PublishJSON(context.Context, []byte) error
+}
+
+func NewCalculations(store datastore, fibOfWorkQ workqueue) *Calculations {
+	return &Calculations{
+		store:      store,
+		fibOfWorkQ: fibOfWorkQ,
+	}
 }
 
 func (c *Calculations) FibonacciOf(
@@ -42,10 +51,6 @@ func (c *Calculations) FibonacciOf(
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	// Risk vs reward analysis would make some believe name collisions are too
-	// close to impossible to worry about. In this context, it could give
-	// another operation. We want to handle it at a later time, but can
-	// procrastinate for now.
 	op := &longrunningpb.Operation{
 		Name:     uuid.New().String(),
 		Metadata: pbMeta,
@@ -57,9 +62,24 @@ func (c *Calculations) FibonacciOf(
 			Created: metadata.Created.AsTime(),
 		},
 	}
+	calculationJSON, err := json.Marshal(calculation)
+	if err != nil {
+		log.Printf("error marshaling calculation to JSON: %s", err)
+		return nil, status.Error(codes.Internal, "internal error")
+	}
 
+	// TODO: this is incorrect. It shouldn't create or update. It should create
+	// or error. When it errors, it should generate a new name and try again. If
+	// it still doesn't work, return an error.
 	if err := c.store.Save(ctx, calculation); err != nil {
 		log.Printf("error saving calculation: %s", err)
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	if err := c.fibOfWorkQ.PublishJSON(ctx, calculationJSON); err != nil {
+		// TODO: We need to additionally consider cleanup of the calculation in
+		// the store, and furthermore what happens if that fails.
+		log.Printf("error creating workQueue for %s: %s", calculation.Name, err)
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 

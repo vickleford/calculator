@@ -5,6 +5,7 @@ go 1.22.4
 require (
 	cloud.google.com/go/longrunning v0.5.8
 	github.com/google/uuid v1.6.0
+	github.com/rabbitmq/amqp091-go v1.10.0
 	go.etcd.io/etcd/api/v3 v3.5.14
 	go.etcd.io/etcd/client/v3 v3.5.14
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240617180043-68d350f18fd4
