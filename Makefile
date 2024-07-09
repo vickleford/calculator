@@ -1,6 +1,9 @@
 PROTO_SRC_DIR := $(shell pwd)/proto
 PROTO_DST_DIR := $(shell pwd)/internal/pb
 
+RMQ_URL := "amqp://guest:guest@localhost:5672/"
+ETCD_ENDPOINT := "localhost:2379"
+
 proto: ${PROTO_SRC_DIR}
 	test -d ${PROTO_DST_DIR} || mkdir -p ${PROTO_DST_DIR}
 	protoc \
@@ -12,4 +15,11 @@ proto: ${PROTO_SRC_DIR}
 		--go-grpc_out=${PROTO_DST_DIR} \
 		${PROTO_SRC_DIR}/calculator.proto
 
-.PHONY: proto
+
+test:
+	go test -v ./... -race
+
+integration:
+	RMQ_URL=${RMQ_URL} ETCD_ENDPOINT=${ETCD_ENDPOINT} go test -v ./... -race
+
+.PHONY: proto, test
