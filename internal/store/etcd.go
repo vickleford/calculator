@@ -97,6 +97,32 @@ func (c *CalculationStore) Save(ctx context.Context, calculation Calculation) er
 	return nil
 }
 
+// Get returns the calculation for the given name.
+func (c *CalculationStore) Get(ctx context.Context, name string) (Calculation, error) {
+	calc := Calculation{Name: name}
+
+	key := CalculationKey(calc)
+
+	getResp, err := c.cli.Get(ctx, key)
+	if err != nil {
+		return calc, fmt.Errorf("error getting key %q: %w", key, err)
+	}
+
+	if getResp.Count == 0 {
+		return calc, ErrKeyNotFound
+	}
+
+	if getResp.Count != 1 {
+		return calc, fmt.Errorf("ambiguous results: %d keys found", getResp.Count)
+	}
+
+	if err := json.Unmarshal(getResp.Kvs[0].Value, &calc); err != nil {
+		return calc, fmt.Errorf("error unmarshaling calculation: %w", err)
+	}
+
+	return calc, err
+}
+
 func CalculationKey(calculation Calculation) string {
 	return fmt.Sprintf("calculations/%s", calculation.Name)
 }

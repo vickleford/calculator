@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"testing"
@@ -256,6 +257,57 @@ func TestCreateCalculation_WhenKeyAlreadyExists(t *testing.T) {
 	if len(spy.OperationsSeenByThen) != 0 {
 		t.Errorf("should not have executed then but saw %d operations",
 			len(spy.OperationsSeenByThen))
+	}
+}
+
+func TestCalculationStore_Get_WhenKeyExists(t *testing.T) {
+	calculation := store.Calculation{
+		Name: "some-operation-name",
+		Metadata: store.CalculationMetadata{
+			Created: time.Now(),
+		},
+	}
+
+	calculationMarshaled, err := json.Marshal(calculation)
+	if err != nil {
+		t.Fatalf("error setting up test with marshaled calculation: %s", err)
+	}
+
+	spy := NewETCDClientSpy()
+	spy.ReturnGetResponse = &clientv3.GetResponse{
+		Kvs: []*mvccpb.KeyValue{
+			{Value: calculationMarshaled},
+		},
+		Count: 1,
+	}
+
+	client := store.NewCalculationStore(spy)
+	actual, err := client.Get(context.Background(), calculation.Name)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	if actual.Name != calculation.Name {
+		t.Errorf("got name %q but expected %q", actual.Name, calculation.Name)
+	}
+
+	if actual.Metadata.Started != calculation.Metadata.Started {
+		t.Errorf("got started time %q but expected %q",
+			actual.Metadata.Started, calculation.Metadata.Started)
+	}
+}
+
+func TestCclaulationStore_Get_WhenKeyNotExists(t *testing.T) {
+	spy := NewETCDClientSpy()
+	spy.ReturnGetResponse = &clientv3.GetResponse{
+		Kvs:   []*mvccpb.KeyValue{},
+		Count: 0,
+	}
+
+	client := store.NewCalculationStore(spy)
+	_, err := client.Get(context.Background(), "whatever")
+	if !errors.Is(err, store.ErrKeyNotFound) {
+		t.Errorf("unexpected error: %#v", err)
 	}
 }
 
