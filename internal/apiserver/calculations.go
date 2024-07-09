@@ -25,6 +25,7 @@ type Calculations struct {
 
 type datastore interface {
 	Create(context.Context, store.Calculation) error
+	Get(context.Context, string) (store.Calculation, error)
 }
 
 type workqueue interface {

@@ -12,10 +12,25 @@ import (
 	"github.com/vickleford/calculator/internal/store"
 )
 
-type CreateFunc func(context.Context, store.Calculation) error
+type fakeStore struct {
+	CreateFunc func(context.Context, store.Calculation) error
+	GetFunc    func(context.Context, string) (store.Calculation, error)
+}
 
-func (f CreateFunc) Create(ctx context.Context, c store.Calculation) error {
-	return f(ctx, c)
+func (s fakeStore) Create(ctx context.Context, c store.Calculation) error {
+	if s.CreateFunc == nil {
+		panic("Create is unimplemented")
+	}
+
+	return s.CreateFunc(ctx, c)
+}
+
+func (s fakeStore) Get(ctx context.Context, key string) (store.Calculation, error) {
+	if s.GetFunc == nil {
+		panic("Get is unimplemented")
+	}
+
+	return s.GetFunc(ctx, key)
 }
 
 type workQ struct {
@@ -40,15 +55,18 @@ func (q *workQ) PublishJSON(ctx context.Context, msg any) error {
 }
 
 func TestFibonacciOf_Create(t *testing.T) {
-	queue := &workQ{}
-
 	var createCalled bool
 
-	server := apiserver.NewCalculations(
-		CreateFunc(func(ctx context.Context, c store.Calculation) error {
+	queue := &workQ{}
+	mockStore := fakeStore{
+		CreateFunc: func(ctx context.Context, c store.Calculation) error {
 			createCalled = true
 			return nil
-		}),
+		},
+	}
+
+	server := apiserver.NewCalculations(
+		mockStore,
 		queue,
 	)
 
