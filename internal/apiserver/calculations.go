@@ -83,3 +83,22 @@ func (c *Calculations) FibonacciOf(
 
 	return op, nil
 }
+
+func (c *Calculations) GetOperation(
+	ctx context.Context,
+	req *longrunningpb.GetOperationRequest,
+) (*longrunningpb.Operation, error) {
+	calc, err := c.store.Get(ctx, req.Name)
+	if err != nil {
+		// TODO: differentiate between actually not found and error finding it.
+		log.Printf("error getting calculation: %s", err)
+		return nil, status.Error(codes.NotFound, "could not find operation")
+	}
+
+	op := &longrunningpb.Operation{
+		Name: calc.Name,
+		Done: calc.Done,
+	}
+
+	return op, nil
+}

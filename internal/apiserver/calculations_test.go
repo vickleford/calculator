@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/longrunning/autogen/longrunningpb"
 	"github.com/google/uuid"
 	"github.com/vickleford/calculator/internal/apiserver"
 	"github.com/vickleford/calculator/internal/pb"
@@ -100,5 +102,39 @@ func TestFibonacciOf_Create(t *testing.T) {
 	if storeUUID != msgUUID {
 		t.Errorf("message UUID %q and store UUID %q must be the same",
 			msgUUID, storeUUID)
+	}
+}
+
+func TestCalculations_GetOperation(t *testing.T) {
+	createdAt := time.Now().Add(-30 * time.Second)
+
+	mockStore := fakeStore{
+		GetFunc: func(ctx context.Context, key string) (store.Calculation, error) {
+			return store.Calculation{
+				Name: key,
+				Metadata: store.CalculationMetadata{
+					Created: createdAt,
+				},
+			}, nil
+		},
+	}
+
+	server := apiserver.NewCalculations(mockStore, nil)
+
+	opName := uuid.New().String()
+
+	req := &longrunningpb.GetOperationRequest{Name: opName}
+
+	response, err := server.GetOperation(context.Background(), req)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	if response.Name != opName {
+		t.Errorf("expected name %q but got %q", opName, response.Name)
+	}
+
+	if response.Done {
+		t.Errorf("expected Done to be false")
 	}
 }
