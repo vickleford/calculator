@@ -13,6 +13,7 @@ import (
 	"github.com/vickleford/calculator/internal/apiserver"
 	"github.com/vickleford/calculator/internal/pb"
 	"github.com/vickleford/calculator/internal/store"
+	"github.com/vickleford/calculator/internal/workqueue"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/genproto/googleapis/rpc/status"
@@ -97,14 +98,24 @@ func TestFibonacciOf_Create(t *testing.T) {
 		t.Errorf("name is not a uuid or can't parse: %s", err)
 	}
 
-	calculation := store.Calculation{}
-	if err := json.Unmarshal(queue.message, &calculation); err != nil {
-		t.Errorf("published message was not a calculation")
+	fibOfJob := workqueue.FibonacciOfJob{}
+	if err := json.Unmarshal(queue.message, &fibOfJob); err != nil {
+		t.Errorf("error unmarshaling job: %s", err)
 	}
 
-	msgUUID, err := uuid.Parse(calculation.Name)
+	msgUUID, err := uuid.Parse(fibOfJob.OperationName)
 	if err != nil {
 		t.Errorf("expected a UUID name")
+	}
+
+	if fibOfJob.Start != req.Start {
+		t.Errorf("expected job to have start of %d but was %d",
+			req.Start, fibOfJob.Start)
+	}
+
+	if fibOfJob.Position != req.NthPosition {
+		t.Errorf("expected job to have position of %d but was %d",
+			req.NthPosition, fibOfJob.Position)
 	}
 
 	if storeUUID != msgUUID {
