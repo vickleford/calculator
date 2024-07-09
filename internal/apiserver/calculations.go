@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vickleford/calculator/internal/pb"
 	"github.com/vickleford/calculator/internal/store"
+	"github.com/vickleford/calculator/internal/workqueue"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -21,7 +22,7 @@ var _ pb.CalculationsServer = &Calculations{}
 type Calculations struct {
 	pb.UnimplementedCalculationsServer
 	store      datastore
-	fibOfWorkQ workqueue
+	fibOfWorkQ queue
 }
 
 type datastore interface {
@@ -29,11 +30,11 @@ type datastore interface {
 	Get(context.Context, string) (store.Calculation, error)
 }
 
-type workqueue interface {
+type queue interface {
 	PublishJSON(context.Context, any) error
 }
 
-func NewCalculations(store datastore, fibOfWorkQ workqueue) *Calculations {
+func NewCalculations(store datastore, fibOfWorkQ queue) *Calculations {
 	return &Calculations{
 		store:      store,
 		fibOfWorkQ: fibOfWorkQ,
@@ -67,6 +68,8 @@ func (c *Calculations) FibonacciOf(
 
 	// TODO: When it errors, it should generate a new name and try again. If it
 	// still doesn't work, return an error.
+	// TODO: We need to additionally consider cleanup of the calculation in
+	// the store, and furthermore what happens if that fails.
 	if err := c.store.Create(ctx, calculation); errors.Is(err, store.ErrKeyAlreadyExists) {
 		log.Printf("tried to create calculation %s but it already exists", calculation.Name)
 		return nil, status.Error(codes.AlreadyExists, "already exists")
@@ -75,9 +78,13 @@ func (c *Calculations) FibonacciOf(
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	if err := c.fibOfWorkQ.PublishJSON(ctx, calculation); err != nil {
-		// TODO: We need to additionally consider cleanup of the calculation in
-		// the store, and furthermore what happens if that fails.
+	job := workqueue.FibonacciOfJob{
+		OperationName: calculation.Name,
+		Start:         req.Start,
+		Position:      req.NthPosition,
+	}
+
+	if err := c.fibOfWorkQ.PublishJSON(ctx, job); err != nil {
 		log.Printf("error publishing to workQueue for %s: %s", calculation.Name, err)
 		return nil, status.Error(codes.Internal, "internal error")
 	}
