@@ -3,6 +3,7 @@ package apiserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 
 	"cloud.google.com/go/longrunning/autogen/longrunningpb"
@@ -89,15 +90,39 @@ func (c *Calculations) GetOperation(
 	req *longrunningpb.GetOperationRequest,
 ) (*longrunningpb.Operation, error) {
 	calc, err := c.store.Get(ctx, req.Name)
-	if err != nil {
-		// TODO: differentiate between actually not found and error finding it.
+	if errors.Is(err, store.ErrKeyNotFound) {
+		return nil, status.Error(codes.NotFound,
+			fmt.Sprintf("could not find operation %q", req.Name))
+	} else if err != nil {
 		log.Printf("error getting calculation: %s", err)
-		return nil, status.Error(codes.NotFound, "could not find operation")
+		return nil, status.Error(codes.Internal, "internal error")
 	}
 
 	op := &longrunningpb.Operation{
 		Name: calc.Name,
 		Done: calc.Done,
+	}
+
+	if calc.Error != nil {
+		op.Result = &longrunningpb.Operation_Error{
+			Error: calc.Error,
+		}
+	} else if calc.Result != nil {
+		var resp *anypb.Any
+		var err error
+
+		switch v := calc.Result.(type) {
+		case *pb.FibonacciOfResponse:
+			resp, err = anypb.New(v)
+		}
+		if err != nil {
+			log.Printf("error setting calculation result to Any: %s", err)
+			return nil, status.Error(codes.Internal, "internal error")
+		}
+
+		op.Result = &longrunningpb.Operation_Response{
+			Response: resp,
+		}
 	}
 
 	return op, nil

@@ -9,7 +9,10 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-var ErrKeyAlreadyExists = errors.New("key already exists")
+var (
+	ErrKeyAlreadyExists = errors.New("key already exists")
+	ErrKeyNotFound      = errors.New("key not found")
+)
 
 type etcdClient interface {
 	Get(context.Context, string, ...clientv3.OpOption) (*clientv3.GetResponse, error)
