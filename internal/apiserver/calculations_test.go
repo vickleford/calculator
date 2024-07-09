@@ -107,34 +107,54 @@ func TestFibonacciOf_Create(t *testing.T) {
 
 func TestCalculations_GetOperation(t *testing.T) {
 	createdAt := time.Now().Add(-30 * time.Second)
+	opName := uuid.New().String()
 
-	mockStore := fakeStore{
-		GetFunc: func(ctx context.Context, key string) (store.Calculation, error) {
-			return store.Calculation{
-				Name: key,
-				Metadata: store.CalculationMetadata{
-					Created: createdAt,
-				},
-			}, nil
+	tests := []struct {
+		Name    string
+		GetFunc func(context.Context, string) (store.Calculation, error)
+		assert  func(*testing.T, *longrunningpb.Operation, error)
+	}{
+		{
+			Name: "OperationNotDone",
+			GetFunc: func(ctx context.Context, key string) (store.Calculation, error) {
+				return store.Calculation{
+					Name: key,
+					Metadata: store.CalculationMetadata{
+						Created: createdAt,
+					},
+				}, nil
+			},
+			assert: func(t *testing.T, op *longrunningpb.Operation, err error) {
+				if err != nil {
+					t.Errorf("unexpected error: %s", err)
+				}
+
+				if op.Name != opName {
+					t.Errorf("expected name %q but got %q", opName, op.Name)
+				}
+
+				if op.Done {
+					t.Errorf("expected Done to be false")
+				}
+			},
 		},
 	}
 
-	server := apiserver.NewCalculations(mockStore, nil)
+	for _, test := range tests {
+		test := test
 
-	opName := uuid.New().String()
+		t.Run(test.Name, func(t *testing.T) {
+			mockStore := fakeStore{
+				GetFunc: test.GetFunc,
+			}
 
-	req := &longrunningpb.GetOperationRequest{Name: opName}
+			server := apiserver.NewCalculations(mockStore, nil)
 
-	response, err := server.GetOperation(context.Background(), req)
-	if err != nil {
-		t.Errorf("unexpected error: %s", err)
-	}
+			req := &longrunningpb.GetOperationRequest{Name: opName}
 
-	if response.Name != opName {
-		t.Errorf("expected name %q but got %q", opName, response.Name)
-	}
+			response, err := server.GetOperation(context.Background(), req)
 
-	if response.Done {
-		t.Errorf("expected Done to be false")
+			test.assert(t, response, err)
+		})
 	}
 }
