@@ -25,11 +25,6 @@ func TestIntegration_Producer_PublishJSON(t *testing.T) {
 
 	id := uuid.New().String()
 
-	messageBody, err := json.Marshal(message{Hello: "world", ID: id})
-	if err != nil {
-		t.Fatalf("error setting up test with test json: %s", err)
-	}
-
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		t.Fatalf("cannot reach rmq server: %s", err)
@@ -39,7 +34,9 @@ func TestIntegration_Producer_PublishJSON(t *testing.T) {
 	producer := workqueue.NewProducer(conn, workqueue.WithQueueName("integration"))
 	defer producer.Close()
 
-	if err := producer.PublishJSON(context.Background(), messageBody); err != nil {
+	msg := message{Hello: "world", ID: id}
+
+	if err := producer.PublishJSON(context.Background(), msg); err != nil {
 		t.Errorf("publishing JSON yielded unexpected error: %s", err)
 	}
 

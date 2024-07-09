@@ -22,13 +22,18 @@ type workQ struct {
 	message []byte
 }
 
-func (q *workQ) PublishJSON(ctx context.Context, msg []byte) error {
-	if q.message == nil {
-		q.message = make([]byte, len(msg))
+func (q *workQ) PublishJSON(ctx context.Context, msg any) error {
+	b, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("error marshaling message: %w", err)
 	}
 
-	if n := copy(q.message, msg); n != len(msg) {
-		return fmt.Errorf("copied %d bytes but wanted %d", n, len(msg))
+	if q.message == nil {
+		q.message = make([]byte, len(b))
+	}
+
+	if n := copy(q.message, b); n != len(b) {
+		return fmt.Errorf("copied %d bytes but wanted %d", n, len(b))
 	}
 
 	return nil

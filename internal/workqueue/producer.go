@@ -2,6 +2,7 @@ package workqueue
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -115,11 +116,16 @@ func (p *Producer) requestChannelReinitialization() {
 	p.requestReinit <- struct{}{}
 }
 
-func (p *Producer) PublishJSON(ctx context.Context, message []byte) error {
+func (p *Producer) PublishJSON(ctx context.Context, message any) error {
+	b, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("unable to marshal message to JSON: %w", err)
+	}
+
 	if err := p.channel.PublishWithContext(ctx, p.exchange, p.queue.Name, p.mandatory,
 		p.immediate, amqp.Publishing{
 			ContentType: "application/json",
-			Body:        message,
+			Body:        b,
 		}); err != nil {
 		p.requestChannelReinitialization()
 		return fmt.Errorf("unable to publish message: %s", err)

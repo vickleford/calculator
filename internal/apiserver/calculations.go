@@ -2,7 +2,6 @@ package apiserver
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 
@@ -29,7 +28,7 @@ type datastore interface {
 }
 
 type workqueue interface {
-	PublishJSON(context.Context, []byte) error
+	PublishJSON(context.Context, any) error
 }
 
 func NewCalculations(store datastore, fibOfWorkQ workqueue) *Calculations {
@@ -63,11 +62,6 @@ func (c *Calculations) FibonacciOf(
 			Created: metadata.Created.AsTime(),
 		},
 	}
-	calculationJSON, err := json.Marshal(calculation)
-	if err != nil {
-		log.Printf("error marshaling calculation to JSON: %s", err)
-		return nil, status.Error(codes.Internal, "internal error")
-	}
 
 	// TODO: When it errors, it should generate a new name and try again. If it
 	// still doesn't work, return an error.
@@ -79,7 +73,7 @@ func (c *Calculations) FibonacciOf(
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	if err := c.fibOfWorkQ.PublishJSON(ctx, calculationJSON); err != nil {
+	if err := c.fibOfWorkQ.PublishJSON(ctx, calculation); err != nil {
 		// TODO: We need to additionally consider cleanup of the calculation in
 		// the store, and furthermore what happens if that fails.
 		log.Printf("error publishing to workQueue for %s: %s", calculation.Name, err)
