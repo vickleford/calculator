@@ -32,6 +32,8 @@ func NewFibOf(q queue, ds datastore) *FibOfWorker {
 }
 
 func (w *FibOfWorker) Start(ctx context.Context) error {
+	// TODO: if the context ends, consider trying to write an aborted error to
+	// the datastore prior to closing down.
 	for {
 		job, err := w.queue.NextFibOfJob(ctx)
 		if err != nil {
