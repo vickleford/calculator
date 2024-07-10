@@ -18,7 +18,8 @@ type CalculationError struct {
 
 type FibonacciOfResult struct {
 	Position int64 `json:"position"`
-	Start    int64 `json:"start"`
+	First    int64 `json:"first"`
+	Second   int64 `json:"second"`
 	Result   int64 `json:"result"`
 }
 

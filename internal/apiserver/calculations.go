@@ -80,7 +80,8 @@ func (c *Calculations) FibonacciOf(
 
 	job := workqueue.FibonacciOfJob{
 		OperationName: calculation.Name,
-		Start:         req.Start,
+		First:         req.First,
+		Second:        req.Second,
 		Position:      req.NthPosition,
 	}
 

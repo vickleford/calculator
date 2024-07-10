@@ -30,21 +30,25 @@ service Calculations {
 }
 
 message FibonacciOfRequest {
-  // start defines the starting number of the sequence. It is commonly 0 or 1.
-  int64 start = 1;
+  // first declares the first number of the sequence.
+  int64 first = 1;
+  // second declares the second number of the sequence.
+  int64 second = 2;
   // nth_position defines the Nth position of the sequence to calculate the
   // number of. The first number in the sequence is at position 1.
-  int64 nth_position = 2;
+  int64 nth_position = 3;
 }
 
 message FibonacciOfResponse {
-  // start declares the starting number of the sequence.
-  int64 start = 1;
+  // first declares the first number of the sequence.
+  int64 first = 1;
+  // second declares the second number of the sequence.
+  int64 second = 2;
   // nth_position indexes the calculated fibonacci number at this position
   // starting at 1.
-  int64 nth_position = 2;
+  int64 nth_position = 3;
   // result is the calculated fibonacci number at the requested position.
-  int64 result = 3;
+  int64 result = 4;
 }
 
 // TODO. Either take inspiration from google.api.servicemanagement.v1 or reuse
