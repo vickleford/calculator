@@ -83,7 +83,7 @@ func TestFibonacciOf_Create(t *testing.T) {
 
 	ctx := context.Background()
 
-	req := &pb.FibonacciOfRequest{Start: 1, NthPosition: 5}
+	req := &pb.FibonacciOfRequest{First: 1, Second: 1, NthPosition: 5}
 	response, err := server.FibonacciOf(ctx, req)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
@@ -108,9 +108,14 @@ func TestFibonacciOf_Create(t *testing.T) {
 		t.Errorf("expected a UUID name")
 	}
 
-	if fibOfJob.Start != req.Start {
-		t.Errorf("expected job to have start of %d but was %d",
-			req.Start, fibOfJob.Start)
+	if fibOfJob.First != req.First {
+		t.Errorf("expected job to have first of %d but was %d",
+			req.First, fibOfJob.First)
+	}
+
+	if fibOfJob.Second != req.Second {
+		t.Errorf("expected job to have second of %d but was %d",
+			req.Second, fibOfJob.Second)
 	}
 
 	if fibOfJob.Position != req.NthPosition {
@@ -130,7 +135,8 @@ func TestCalculations_GetOperation(t *testing.T) {
 	opName := uuid.New().String()
 
 	fibOfResponse := &pb.FibonacciOfResponse{
-		Start:       0,
+		First:       0,
+		Second:      1,
 		NthPosition: 6,
 		Result:      5,
 	}
@@ -261,10 +267,15 @@ func TestCalculations_GetOperation(t *testing.T) {
 					t.Errorf("unexpected error converting to desired pb type: %s", err)
 				}
 
-				if actual.Start != fibOfResponse.Start {
-					t.Errorf("expected start to be %d but was %d",
-						fibOfResponse.Start,
-						actual.Start)
+				if actual.First != fibOfResponse.First {
+					t.Errorf("expected first to be %d but was %d",
+						fibOfResponse.First,
+						actual.First)
+				}
+				if actual.Second != fibOfResponse.Second {
+					t.Errorf("expected second to be %d but was %d",
+						fibOfResponse.Second,
+						actual.Second)
 				}
 				if actual.NthPosition != fibOfResponse.NthPosition {
 					t.Errorf("expected nth position to be %d but was %d",

@@ -22,4 +22,4 @@ test:
 integration:
 	RMQ_URL=${RMQ_URL} ETCD_ENDPOINT=${ETCD_ENDPOINT} go test -v ./... -race
 
-.PHONY: proto, test
+.PHONY: proto test
