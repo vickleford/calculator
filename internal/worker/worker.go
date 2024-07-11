@@ -58,7 +58,11 @@ func (w *FibOfWorker) Start(ctx context.Context) error {
 			return err
 		})
 		if err != nil {
-			return fmt.Errorf("error trying to set job started time: %w", err)
+			log.Printf("failed to set job started time on %q: %s",
+				job.OperationName, err)
+			continue
+		} else {
+			log.Printf("successfully set job started time for %q", job.OperationName)
 		}
 
 		c := calculators.NewFibonacci(job.First, job.Second)
@@ -92,11 +96,18 @@ func (w *FibOfWorker) Start(ctx context.Context) error {
 			}
 		}
 
-		if err := w.datastore.Save(ctx, calculation); err != nil {
-			log.Printf("error saving calculation %q: %s", job.OperationName, err)
-			continue
-			// TODO: If it has already been acked and I have failed to save the
-			// status, how might I recover?
+		err = Retry(ctx, func() error {
+			if err := w.datastore.Save(ctx, calculation); err != nil {
+				log.Printf("error saving calculation %q: %s", job.OperationName, err)
+				// TODO: If it has already been acked and I have failed to save the
+				// status, how might I recover?
+			}
+			return err
+		})
+		if err != nil {
+			log.Printf("failed to save calculation %q: %s", job.OperationName, err)
+		} else {
+			log.Printf("successfully saved calculation %q", job.OperationName)
 		}
 	}
 }
