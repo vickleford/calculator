@@ -65,7 +65,7 @@ func (c *CalculationStore) SetStarted(ctx context.Context, name string, t time.T
 	if err != nil {
 		return fmt.Errorf("unable to get calculation: %w", err)
 	}
-	if getResp.Count != 1 {
+	if getResp.Count == 0 {
 		return fmt.Errorf("calculation %q does not exist", name)
 	}
 	if getResp.Count > 1 {
