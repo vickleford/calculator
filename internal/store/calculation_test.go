@@ -311,6 +311,78 @@ func TestCclaulationStore_Get_WhenKeyNotExists(t *testing.T) {
 	}
 }
 
+func TestSetStarted(t *testing.T) {
+	original := store.Calculation{
+		Name: uuid.NewString(),
+		Metadata: store.CalculationMetadata{
+			Created: time.Now(),
+		},
+	}
+
+	originalMarshaled, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("unable to set up test: %s", err)
+	}
+
+	var v int64 = 423893
+
+	spy := NewETCDClientSpy()
+	spy.ReturnGetResponse = &clientv3.GetResponse{
+		Kvs: []*mvccpb.KeyValue{
+			{
+				Value:   originalMarshaled,
+				Version: v,
+			},
+		},
+		Count: 1,
+	}
+
+	spy.ShouldTxnIfSucceed = true
+	spy.ReturnTxnResponse = &clientv3.TxnResponse{
+		Succeeded: true,
+	}
+
+	started := time.Now()
+	client := store.NewCalculationStore(spy)
+	err = client.SetStarted(context.Background(), original.Name, started)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	expectedKey := store.CalculationKey(original)
+
+	if len(spy.ComparisonsSeenByIf) != 1 {
+		t.Errorf("unexpected if comparisons: %#v", spy.ComparisonsSeenByIf)
+	} else {
+		actual := spy.ComparisonsSeenByIf[0]
+		if string(actual.Key) != expectedKey {
+			t.Errorf("saw key %q but expected %q", actual.Key, expectedKey)
+		}
+	}
+
+	if len(spy.OperationsSeenByThen) != 1 {
+		t.Errorf("saw %d operations", len(spy.OperationsSeenByThen))
+		return
+	}
+
+	actual := spy.OperationsSeenByThen[0]
+	if !actual.IsPut() {
+		t.Errorf("expected a PUT operation")
+	}
+	if key := string(actual.KeyBytes()); key != expectedKey {
+		t.Errorf("expected key %q but saw %q", expectedKey, key)
+	}
+
+	savedCalculation := store.Calculation{}
+	if err := json.Unmarshal(actual.ValueBytes(), &savedCalculation); err != nil {
+		t.Errorf("unable to unmarshal written result: %s", err)
+	}
+
+	if !started.Equal(*savedCalculation.Metadata.Started) {
+		t.Errorf("expected time %q but got %q", started, *savedCalculation.Metadata.Started)
+	}
+}
+
 func TestIntegration_CreateCalculation(t *testing.T) {
 	etcdEndpoint := os.Getenv("ETCD_ENDPOINT")
 	if etcdEndpoint == "" {

@@ -45,6 +45,12 @@ func (c *Calculations) FibonacciOf(
 	ctx context.Context,
 	req *pb.FibonacciOfRequest,
 ) (*longrunningpb.Operation, error) {
+	// A typical implementation should validate the request. For example,
+	// requesting the Fibonacci at positions 0 or -5 should not be allowed. This
+	// implementation foregoes validation in order to exercise jobs failing
+	// since it is more difficult to get this simple thing to fail with long
+	// executions.
+
 	metadata := &pb.CalculationMetadata{
 		Created: timestamppb.Now(),
 	}

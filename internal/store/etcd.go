@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 var (
-	ErrKeyAlreadyExists = errors.New("key already exists")
-	ErrKeyNotFound      = errors.New("key not found")
+	ErrKeyAlreadyExists   = errors.New("key already exists")
+	ErrKeyNotFound        = errors.New("key not found")
+	ErrUpdateUnsuccessful = errors.New("update was not successful")
 )
 
 type etcdClient interface {
@@ -49,6 +51,48 @@ func (c *CalculationStore) Create(ctx context.Context, calculation Calculation) 
 
 	if !resp.Succeeded {
 		return ErrKeyAlreadyExists
+	}
+
+	return nil
+}
+
+// SetStartedAt records the Started time for the Calculation with the given name.
+func (c *CalculationStore) SetStarted(ctx context.Context, name string, t time.Time) error {
+	calculation := Calculation{Name: name}
+	key := CalculationKey(calculation)
+
+	getResp, err := c.cli.Get(ctx, key)
+	if err != nil {
+		return fmt.Errorf("unable to get calculation: %w", err)
+	}
+	if getResp.Count == 0 {
+		return fmt.Errorf("calculation %q does not exist", name)
+	}
+	if getResp.Count > 1 {
+		return fmt.Errorf("key %q is a prefix", key)
+	}
+
+	if err := json.Unmarshal(getResp.Kvs[0].Value, &calculation); err != nil {
+		return fmt.Errorf("error unmarshaling calculation %q: %s", name, err)
+	}
+	calculation.Metadata.Started = &t
+
+	update, err := json.Marshal(calculation)
+	if err != nil {
+		return fmt.Errorf("error marshaling updated calculation %q: %s", name, err)
+	}
+
+	resp, err := c.cli.Txn(ctx).If(
+		clientv3.Compare(clientv3.Version(key), "=", getResp.Kvs[0].Version),
+	).Then(
+		clientv3.OpPut(key, string(update)),
+	).Commit()
+	if err != nil {
+		return fmt.Errorf("error writing key %q: %w", key, err)
+	}
+
+	if !resp.Succeeded {
+		return ErrUpdateUnsuccessful
 	}
 
 	return nil
