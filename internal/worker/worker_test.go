@@ -25,6 +25,16 @@ func (c *consumer) NextFibOfJob(context.Context) (*workqueue.FibonacciOfJob, err
 type storeSpy struct {
 	saveErr error
 	saved   chan store.Calculation
+
+	setStartedName string
+	setStartedTime time.Time
+	setStartedErr  error
+}
+
+func (s *storeSpy) SetStartedTime(ctx context.Context, name string, t time.Time) error {
+	s.setStartedName = name
+	s.setStartedTime = t
+	return s.setStartedErr
 }
 
 func (s *storeSpy) Save(ctx context.Context, calc store.Calculation) error {
@@ -149,5 +159,52 @@ func TestFibOfWorker_Error(t *testing.T) {
 
 	if actual.Error.Message != calculators.ErrFibonacciPositionInvalid.Error() {
 		t.Errorf("unexpected error message: %q", actual.Error.Message)
+	}
+}
+
+func TestFibOfWorker_SetsStartedTime(t *testing.T) {
+	saved := make(chan store.Calculation)
+	fakeStore := &storeSpy{saved: saved}
+
+	queue := &consumer{fibOfQueue: make(chan *workqueue.FibonacciOfJob, 10)}
+	job := &workqueue.FibonacciOfJob{
+		OperationName: "george",
+		First:         0,
+		Second:        1,
+		Position:      5,
+	}
+	queue.fibOfQueue <- job
+
+	w := worker.NewFibOf(queue, fakeStore)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go func() {
+		err := w.Start(ctx)
+		if err != nil {
+			t.Errorf("unexpected error from worker start: %s", err)
+		}
+	}()
+
+	select {
+	case <-saved:
+	case <-ctx.Done():
+		t.Fatalf("test timed out")
+	}
+
+	if fakeStore.setStartedTime.IsZero() {
+		t.Error("the started time was not set")
+	} else if time.Since(fakeStore.setStartedTime) > 5*time.Second {
+		t.Errorf("the started time %q is older than expected",
+			fakeStore.setStartedTime)
+	}
+
+	if now := time.Now(); fakeStore.setStartedTime.After(now) {
+		t.Errorf("the started time %q is after now %q",
+			fakeStore.setStartedTime, now)
+	}
+
+	if fakeStore.setStartedName != job.OperationName {
+		t.Errorf("got %q but expected %q", fakeStore.setStartedName, job.OperationName)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/vickleford/calculator/internal/calculators"
 	"github.com/vickleford/calculator/internal/pb"
@@ -25,6 +26,7 @@ type queue interface {
 
 type datastore interface {
 	Save(context.Context, store.Calculation) error
+	SetStartedTime(context.Context, string, time.Time) error
 }
 
 func NewFibOf(q queue, ds datastore) *FibOfWorker {
@@ -46,7 +48,18 @@ func (w *FibOfWorker) Start(ctx context.Context) error {
 
 		// ack? leave that to the workqueue consumer since acking is a rmq thing.
 
-		// todo: set the operation's started at time.
+		// This is a weak area where a job could get lost. Give it a good
+		// college effort.
+		err = Retry(ctx, func() error {
+			err := w.datastore.SetStartedTime(ctx, job.OperationName, time.Now())
+			if err != nil {
+				log.Printf("error setting job started time: %s", err)
+			}
+			return err
+		})
+		if err != nil {
+			return fmt.Errorf("error trying to set job started time: %w", err)
+		}
 
 		c := calculators.NewFibonacci(job.First, job.Second)
 		result, jobErr := c.NumberAtPosition(job.Position)
