@@ -25,4 +25,7 @@ integration:
 calculatord:
 	go build -o calculatord cmd/calculatord/main.go
 
+calculatorw:
+	go build -o calculatorw cmd/calculatorw/main.go
+
 .PHONY: proto test

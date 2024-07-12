@@ -344,7 +344,7 @@ func TestSetStarted(t *testing.T) {
 
 	started := time.Now()
 	client := store.NewCalculationStore(spy)
-	err = client.SetStarted(context.Background(), original.Name, started)
+	err = client.SetStartedTime(context.Background(), original.Name, started)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}

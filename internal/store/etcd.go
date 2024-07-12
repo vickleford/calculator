@@ -57,7 +57,7 @@ func (c *CalculationStore) Create(ctx context.Context, calculation Calculation) 
 }
 
 // SetStartedAt records the Started time for the Calculation with the given name.
-func (c *CalculationStore) SetStarted(ctx context.Context, name string, t time.Time) error {
+func (c *CalculationStore) SetStartedTime(ctx context.Context, name string, t time.Time) error {
 	calculation := Calculation{Name: name}
 	key := CalculationKey(calculation)
 
