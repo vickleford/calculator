@@ -65,9 +65,20 @@ func daemonize(opts daemonOpts) error {
 
 	listenErr := make(chan error)
 	go func() {
+		etcdClientMetrics := grpcprom.NewClientMetrics(
+			grpcprom.WithClientCounterOptions(
+				grpcprom.WithSubsystem("datastore_etcd_client"),
+			),
+		)
+		metricsRegistry.MustRegister(etcdClientMetrics)
+
 		etcdClient, err := clientv3.New(clientv3.Config{
 			Endpoints:   strings.Split(opts.etcdAddr, ","),
 			DialTimeout: 5 * time.Second,
+			DialOptions: []grpc.DialOption{
+				grpc.WithChainUnaryInterceptor(etcdClientMetrics.UnaryClientInterceptor()),
+				grpc.WithChainStreamInterceptor(etcdClientMetrics.StreamClientInterceptor()),
+			},
 		})
 		if err != nil {
 			listenErr <- fmt.Errorf("error dialing etcd at %q: %w", opts.etcdAddr, err)
