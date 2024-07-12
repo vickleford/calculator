@@ -13,7 +13,7 @@ import (
 	"github.com/vickleford/calculator/internal/apiserver"
 	"github.com/vickleford/calculator/internal/pb"
 	"github.com/vickleford/calculator/internal/store"
-	"github.com/vickleford/calculator/internal/workqueue"
+	"github.com/vickleford/calculator/internal/worker"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/genproto/googleapis/rpc/status"
@@ -98,7 +98,7 @@ func TestFibonacciOf_Create(t *testing.T) {
 		t.Errorf("name is not a uuid or can't parse: %s", err)
 	}
 
-	fibOfJob := workqueue.FibonacciOfJob{}
+	fibOfJob := worker.FibonacciOfJob{}
 	if err := json.Unmarshal(queue.message, &fibOfJob); err != nil {
 		t.Errorf("error unmarshaling job: %s", err)
 	}
