@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -55,9 +54,6 @@ func (opts daemonOpts) RabbitURL() string {
 }
 
 func daemonize(opts daemonOpts) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	listenErr := make(chan error)
 	go func() {
 		etcdClient, err := clientv3.New(clientv3.Config{
@@ -107,7 +103,5 @@ func daemonize(opts daemonOpts) error {
 		return fmt.Errorf("error running gRPC server: %w", err)
 	case err := <-metricsErr:
 		return fmt.Errorf("error running metrics service: %w", err)
-	case <-ctx.Done():
-		return ctx.Err()
 	}
 }
