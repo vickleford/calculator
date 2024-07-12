@@ -71,7 +71,19 @@ Rel(api, store, "Stores results")
 
 ## Running
 
+To run the daemon locally:
+
+```shell
+CALCULATORD_RABBIT_USER=guest CALCULATORD_RABBIT_PASS=guest ./calculatord
+```
+
 ## Building
+
+To build the daemon:
+
+```shell
+make calculatord
+```
 
 ## Deploying to Docker
 
