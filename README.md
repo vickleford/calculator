@@ -77,6 +77,12 @@ To run the daemon locally:
 CALCULATORD_RABBIT_USER=guest CALCULATORD_RABBIT_PASS=guest ./calculatord
 ```
 
+To run the worker locally:
+
+```shell
+CALCULATORW_RABBIT_USER=guest CALCULATORW_RABBIT_PASS=guest ./calculatorw
+```
+
 To use grpcurl,
 
 ```shell
