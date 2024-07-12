@@ -18,10 +18,26 @@ type handler interface {
 type AMQP091Consumer struct {
 	conn     amqpConnection
 	strategy handler
+
+	desiredQueueName string
+	durable          bool
 }
 
-func NewConsumer(conn amqpConnection, strategy handler) *AMQP091Consumer {
-	return &AMQP091Consumer{conn: conn, strategy: strategy}
+func NewConsumer[T AMQP091Consumer](conn amqpConnection, strategy handler, opts ...AMQP091Option[T]) *T {
+	c := new(T)
+
+	concrete, ok := any(c).(*AMQP091Consumer)
+	if !ok {
+		panic("unsupported consumer type")
+	}
+	concrete.conn = conn
+	concrete.strategy = strategy
+
+	for _, o := range opts {
+		o(c)
+	}
+
+	return c
 }
 
 func (c *AMQP091Consumer) Start(ctx context.Context) error {
@@ -37,8 +53,8 @@ func (c *AMQP091Consumer) Start(ctx context.Context) error {
 	defer recvCh.Close()
 
 	q, err := recvCh.QueueDeclare(
-		"desiredQueueName", // name
-		false,              // durable
+		c.desiredQueueName, // name
+		c.durable,          // durable
 		false,              // autodelete
 		false,              // exclusive
 		false,              // noWait

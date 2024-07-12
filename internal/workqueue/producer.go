@@ -13,20 +13,6 @@ type amqpConnection interface {
 	Channel() (*amqp.Channel, error)
 }
 
-type ProducerOption func(*Producer)
-
-func WithDurableQueue() ProducerOption {
-	return func(p *Producer) {
-		p.durable = true
-	}
-}
-
-func WithQueueName(name string) ProducerOption {
-	return func(p *Producer) {
-		p.desiredQueueName = name
-	}
-}
-
 // Producer is capable of publishing to a RabbitMQ exchange.
 type Producer struct {
 	desiredQueueName string
@@ -47,11 +33,15 @@ type Producer struct {
 	ready         chan struct{}
 }
 
-func NewProducer(conn amqpConnection, opts ...ProducerOption) *Producer {
-	p := &Producer{
-		reinitialize: make(chan struct{}),
-		ready:        make(chan struct{}),
+func NewProducer[T Producer](conn amqpConnection, opts ...AMQP091Option[T]) *T {
+	p := new(T)
+
+	producer, ok := any(p).(*Producer)
+	if !ok {
+		panic("unsupported producer type")
 	}
+	producer.reinitialize = make(chan struct{})
+	producer.ready = make(chan struct{})
 
 	for _, o := range opts {
 		o(p)
@@ -68,8 +58,14 @@ func NewProducer(conn amqpConnection, opts ...ProducerOption) *Producer {
 				// ???
 			}
 
-			q, err := ch.QueueDeclare(p.desiredQueueName, p.durable, p.deleteWhenUnused,
-				p.exclusive, p.noWait, nil)
+			q, err := ch.QueueDeclare(
+				producer.desiredQueueName,
+				producer.durable,
+				producer.deleteWhenUnused,
+				producer.exclusive,
+				producer.noWait,
+				nil,
+			)
 			if err != nil {
 				log.Printf("error declaring queue: %s", err)
 				ch.Close()
@@ -77,16 +73,16 @@ func NewProducer(conn amqpConnection, opts ...ProducerOption) *Producer {
 				// ???
 			}
 
-			p.channel = ch
-			p.queue = q
-			p.ready <- struct{}{}
+			producer.channel = ch
+			producer.queue = q
+			producer.ready <- struct{}{}
 
-			<-p.reinitialize
+			<-producer.reinitialize
 			ch.Close()
 		}
 	}()
 
-	<-p.ready
+	<-producer.ready
 
 	// Handle reinitialize requests. Essentially, multiple requests from
 	// multiple callers need to be trimmed down to one signal to reinitialize
@@ -94,15 +90,15 @@ func NewProducer(conn amqpConnection, opts ...ProducerOption) *Producer {
 	go func() {
 		var waitingForReady bool
 		for {
-			<-p.requestReinit
+			<-producer.requestReinit
 			// Drain off reinitialize requests from multiple callers until we
 			// are ready. This helps multiple callers from stampeding the
 			// reinitialization of the channel.
 			if !waitingForReady {
 				waitingForReady = true
 				go func() {
-					p.reinitialize <- struct{}{}
-					<-p.ready
+					producer.reinitialize <- struct{}{}
+					<-producer.ready
 					waitingForReady = false
 				}()
 			}

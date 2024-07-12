@@ -39,7 +39,8 @@ func TestIntegration_Workqueue_PublishAndConsumeJSON(t *testing.T) {
 	}
 	defer conn.Close()
 
-	producer := workqueue.NewProducer(conn, workqueue.WithQueueName(queueName))
+	producer := workqueue.NewProducer(conn,
+		workqueue.WithQueueName[workqueue.Producer](queueName))
 	defer producer.Close()
 
 	msg := message{Hello: "world", ID: id}
@@ -64,7 +65,8 @@ func TestIntegration_Workqueue_PublishAndConsumeJSON(t *testing.T) {
 	})
 
 	consumerFinishedUnexpectedly := make(chan error)
-	consumer := workqueue.NewConsumer(conn, h)
+	consumer := workqueue.NewConsumer(conn, h,
+		workqueue.WithQueueName[workqueue.AMQP091Consumer](queueName))
 	go func() {
 		consumerFinishedUnexpectedly <- consumer.Start(ctx)
 	}()
