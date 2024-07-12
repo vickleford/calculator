@@ -71,7 +71,8 @@ func TestIntegration_Workqueue_PublishAndConsumeJSON(t *testing.T) {
 
 	select {
 	case <-receivedDesiredMessage:
-	case <-consumerFinishedUnexpectedly:
+	case err := <-consumerFinishedUnexpectedly:
+		t.Log(err)
 		t.Errorf("unexpected consumer stop: %s", err)
 	case <-time.After(10 * time.Second):
 		t.Errorf("never received desired message")

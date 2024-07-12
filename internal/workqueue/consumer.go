@@ -66,6 +66,8 @@ func (c *AMQP091Consumer) Start(ctx context.Context) error {
 			return err
 		} else if ackErr, ok := err.(*AcknowledgementError); ok {
 			return ackErr
+		} else if errors.Is(err, context.Canceled) {
+			return err
 		} else if err != nil {
 			log.Printf("error handling message: %s", err)
 		}
