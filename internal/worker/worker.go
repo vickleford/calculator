@@ -11,7 +11,6 @@ import (
 	"github.com/vickleford/calculator/internal/calculators"
 	"github.com/vickleford/calculator/internal/pb"
 	"github.com/vickleford/calculator/internal/store"
-	"github.com/vickleford/calculator/internal/workqueue"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 )
@@ -32,10 +31,6 @@ type FibonacciOfJob struct {
 
 type FibOfHandler struct {
 	datastore datastore
-}
-
-type queue interface {
-	NextFibOfJob(context.Context) (*workqueue.FibonacciOfJob, error)
 }
 
 type datastore interface {

@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vickleford/calculator/internal/pb"
 	"github.com/vickleford/calculator/internal/store"
-	"github.com/vickleford/calculator/internal/workqueue"
+	"github.com/vickleford/calculator/internal/worker"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -84,7 +84,7 @@ func (c *Calculations) FibonacciOf(
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	job := workqueue.FibonacciOfJob{
+	job := worker.FibonacciOfJob{
 		OperationName: calculation.Name,
 		First:         req.First,
 		Second:        req.Second,
