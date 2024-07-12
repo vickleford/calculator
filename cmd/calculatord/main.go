@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/vickleford/calculator/internal/apiserver"
@@ -54,6 +57,12 @@ func (opts daemonOpts) RabbitURL() string {
 }
 
 func daemonize(opts daemonOpts) error {
+	metricsRegistry := prometheus.NewRegistry()
+	metricsRegistry.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+
 	listenErr := make(chan error)
 	go func() {
 		etcdClient, err := clientv3.New(clientv3.Config{
@@ -84,8 +93,21 @@ func daemonize(opts daemonOpts) error {
 			return
 		}
 
-		var opts []grpc.ServerOption
-		gRPCServer := grpc.NewServer(opts...)
+		preferredBuckets := []float64{
+			0.001, 0.01, 0.1, 0.3, 0.6, 1, 3, 6, 9, 20, 30, 60, 90, 120,
+		}
+
+		srvMetrics := grpcprom.NewServerMetrics(
+			grpcprom.WithServerHandlingTimeHistogram(
+				grpcprom.WithHistogramBuckets(preferredBuckets),
+			),
+		)
+		metricsRegistry.MustRegister(srvMetrics)
+
+		grpcOpts := []grpc.ServerOption{
+			grpc.ChainUnaryInterceptor(srvMetrics.UnaryServerInterceptor()),
+		}
+		gRPCServer := grpc.NewServer(grpcOpts...)
 		pb.RegisterCalculationsServer(gRPCServer, apiserver.NewCalculations(datastore, producer))
 
 		listenErr <- gRPCServer.Serve(listener)
@@ -93,7 +115,12 @@ func daemonize(opts daemonOpts) error {
 
 	metricsErr := make(chan error)
 	go func() {
-		metricsErr <- http.ListenAndServe(opts.metricsAddr, promhttp.Handler())
+		handler := promhttp.HandlerFor(metricsRegistry,
+			promhttp.HandlerOpts{
+				Timeout: 30 * time.Second,
+			},
+		)
+		metricsErr <- http.ListenAndServe(opts.metricsAddr, handler)
 	}()
 
 	log.Printf("running on %s with metrics on %s...", opts.listenAddr, opts.metricsAddr)

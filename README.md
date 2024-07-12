@@ -77,6 +77,17 @@ To run the daemon locally:
 CALCULATORD_RABBIT_USER=guest CALCULATORD_RABBIT_PASS=guest ./calculatord
 ```
 
+To use grpcurl,
+
+```shell
+grpcurl -d 'todo' \
+    -plaintext \
+    -proto proto/calculator.proto \
+    -import-path $(pwd)/proto \
+    -import-path $(pwd)/proto/third_party/googleapis \
+    localhost:8080 calculator.Calculations/FibonacciOf
+```
+
 ## Building
 
 To build the daemon:
