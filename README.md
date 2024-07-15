@@ -35,38 +35,19 @@ of workers, but only one of them will pick up a job at a time.
 C4Container
 title Distriuton of calculations
 
-Container(api, API, gRPC, "manages calculation requests")
-Container(calc, calculator, "Go")
-Container(mq, "Message Queue")
-Rel(api, mq, "Submits jobs")
-Rel(calc, mq, "Takes jobs")
-```
+System_Boundary(b, "calculator") {
+    Container(api, API, gRPC, "manages calculation requests")
+    ContainerQueue(mq, "Message Queue")
 
-When a calculation is complete, the worker will send the result back to the API.
+    Container(calc, calculator, "Go")
 
-<!-- reminder: I need to scrub expired results -->
+    ContainerDb(store, "Data Store", "etcd")
 
-```mermaid
-C4Container
-title Calculation is complete
-
-Container(calc, calculator, "Go")
-Container(mq, Queue, "Message Queue")
-Rel(calc, mq, "Submits results")
-```
-
-The API will follow up by storing the result for retrieval.
-
-```mermaid
-C4Container
-title Store solution for retrieval
-
-Container(api, API, "gRPC")
-Container(mq, "Message Queue")
-Rel(api, mq, "Receives results")
-
-ContainerDb(store, results, "key/value store", "Stores solutions")
-Rel(api, store, "Stores results")
+    Rel(api, mq, "Submits jobs")
+    Rel(api, store, "Stores operations")
+    Rel(calc, mq, "Takes jobs")
+    Rel(mq, store, "Updates operations with results")
+}
 ```
 
 ## Running
