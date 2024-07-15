@@ -12,11 +12,12 @@ title User submission
 
 Person(actor, "user")
 System(calculator, "does mathematical calculations")
-Rel(actor, calculator, "sumits calculation", "gRPC")
+Rel(actor, calculator, "FibOf", "gRPC")
 ```
 
 Because some calculations might take a while, a user will get a job ID back and
-be able to retrieve it later.
+be able to retrieve it later. This is implemented as long-running operations
+where a user can get the results of the submitted calculation.
 
 ```mermaid
 C4Context
@@ -24,7 +25,7 @@ title Retrieve solution
 
 Person(actor, "user")
 System(calculator, "does mathematical calculations")
-Rel(actor, calculator, "retrieves solution", "gRPC")
+Rel(actor, calculator, "GetOperation", "gRPC")
 ```
 
 The calculator has two major components: the API (in gRPC) and the calculators,
@@ -35,38 +36,21 @@ of workers, but only one of them will pick up a job at a time.
 C4Container
 title Distriuton of calculations
 
-Container(api, API, gRPC, "manages calculation requests")
-Container(calc, calculator, "Go")
-Container(mq, "Message Queue")
-Rel(api, mq, "Submits jobs")
-Rel(calc, mq, "Takes jobs")
-```
+System_Boundary(b, "calculator") {
+    Container(api, API, gRPC, "manages calculation requests")
+    ContainerQueue(mq, "Message Queue")
+    ContainerDb(store, "Data Store", "etcd")
 
-When a calculation is complete, the worker will send the result back to the API.
+    Container(calc, calculator, "Go")
 
-<!-- reminder: I need to scrub expired results -->
 
-```mermaid
-C4Container
-title Calculation is complete
+    UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="2")
 
-Container(calc, calculator, "Go")
-Container(mq, Queue, "Message Queue")
-Rel(calc, mq, "Submits results")
-```
-
-The API will follow up by storing the result for retrieval.
-
-```mermaid
-C4Container
-title Store solution for retrieval
-
-Container(api, API, "gRPC")
-Container(mq, "Message Queue")
-Rel(api, mq, "Receives results")
-
-ContainerDb(store, results, "key/value store", "Stores solutions")
-Rel(api, store, "Stores results")
+    Rel(api, mq, "Submits jobs")
+    Rel(api, store, "Creates operations")
+    Rel(calc, mq, "Takes jobs")
+    Rel(calc, store, "Updates operations with results")
+}
 ```
 
 ## Running
@@ -83,15 +67,38 @@ To run the worker locally:
 CALCULATORW_RABBIT_USER=guest CALCULATORW_RABBIT_PASS=guest ./calculatorw
 ```
 
-To use grpcurl,
+To use grpcurl to submit a calculation:
 
 ```shell
-grpcurl -d 'todo' \
+grpcurl -d '{"first": 0, "second": 1, "nth_position": 10}' \
     -plaintext \
     -proto proto/calculator.proto \
     -import-path $(pwd)/proto \
     -import-path $(pwd)/proto/third_party/googleapis \
     localhost:8080 calculator.Calculations/FibonacciOf
+```
+
+It returns an operation with a name, such as:
+
+```json
+{
+  "name": "4ea7e923-8ec0-42ff-b974-97b9869f8ab4",
+  "metadata": {
+    "@type": "type.googleapis.com/calculator.CalculationMetadata",
+    "created": "2024-07-15T20:33:08.268024Z"
+  }
+}
+```
+
+To use grpcurl to check the status of a calculation:
+
+```shell
+grpcurl -d '{"name": "4ea7e923-8ec0-42ff-b974-97b9869f8ab4"}' \
+    -plaintext \
+    -proto proto/calculator.proto \
+    -import-path $(pwd)/proto \
+    -import-path $(pwd)/proto/third_party/googleapis \
+    localhost:8080 calculator.Calculations/GetOperation
 ```
 
 ## Building
