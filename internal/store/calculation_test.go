@@ -161,7 +161,7 @@ func TestSaveCalculation_WhenKeyExists(t *testing.T) {
 		t.Errorf("unexpected error: %s", err)
 	}
 
-	if len(spy.ComparisonsSeenByIf) != 1 {
+	if len(spy.ComparisonsSeenByIf) != 2 {
 		t.Errorf("unexpected if comparisons: %#v", spy.ComparisonsSeenByIf)
 	} else {
 		actual := spy.ComparisonsSeenByIf[0]
@@ -198,6 +198,50 @@ func TestSaveCalculation_WhenKeyExists(t *testing.T) {
 				t.Errorf("expected %q but got %q", started, *savedCalculation.Metadata.Started)
 			}
 		}
+	}
+}
+
+func TestSaveCalculation_WhenVersionDoesNotMatch(t *testing.T) {
+	created := time.Now().Add(-10 * time.Second)
+	started := time.Now()
+	calculation := store.Calculation{
+		Name: "some-operation-name",
+		Metadata: store.CalculationMetadata{
+			Created: created,
+			Started: &started,
+			Version: 72,
+		},
+	}
+
+	expectedKey := store.CalculationKey(calculation)
+
+	spy := NewETCDClientSpy()
+	spy.ReturnGetResponse = &clientv3.GetResponse{
+		Count: 1,
+		Kvs: []*mvccpb.KeyValue{
+			{
+				Key:     []byte(expectedKey),
+				Version: 428922,
+			},
+		},
+	}
+	spy.ReturnTxnResponse = &clientv3.TxnResponse{
+		Succeeded: false,
+	}
+	client := store.NewCalculationStore(spy)
+
+	// TODO: revisit this to see if there is a better way. This test is
+	// meaningless because I have to tell it to fail rather than relying on my
+	// transaction conditionals to work and I can't make good assertions on the
+	// comparisons seen by If.
+	spy.ShouldTxnIfSucceed = false
+
+	if err := client.Save(context.Background(), calculation); !errors.Is(err, store.ErrUpdateUnsuccessful) {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	if len(spy.OperationsSeenByThen) != 0 {
+		t.Errorf("saw %d operations", len(spy.OperationsSeenByThen))
 	}
 }
 
@@ -294,10 +338,12 @@ func TestCalculationStore_Get_WhenKeyExists(t *testing.T) {
 		t.Fatalf("error setting up test with marshaled calculation: %s", err)
 	}
 
+	const version int64 = 51
+
 	spy := NewETCDClientSpy()
 	spy.ReturnGetResponse = &clientv3.GetResponse{
 		Kvs: []*mvccpb.KeyValue{
-			{Value: calculationMarshaled},
+			{Value: calculationMarshaled, Version: version},
 		},
 		Count: 1,
 	}
@@ -315,6 +361,10 @@ func TestCalculationStore_Get_WhenKeyExists(t *testing.T) {
 	if actual.Metadata.Started != calculation.Metadata.Started {
 		t.Errorf("got started time %q but expected %q",
 			actual.Metadata.Started, calculation.Metadata.Started)
+	}
+
+	if actual.Metadata.Version != version {
+		t.Errorf("expected version %d but got %d", version, actual.Metadata.Version)
 	}
 }
 

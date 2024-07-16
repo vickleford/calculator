@@ -129,13 +129,14 @@ func (c *CalculationStore) Save(ctx context.Context, calculation Calculation) er
 
 	txResp, err := c.cli.Txn(ctx).If(
 		clientv3.Compare(clientv3.Version(key), "=", kv.Version),
+		clientv3.Compare(clientv3.Version(key), "=", calculation.Metadata.Version),
 	).Then(
 		clientv3.OpPut(key, string(value)),
 	).Commit()
 	if err != nil {
 		return fmt.Errorf("transaction error: %w", err)
 	} else if !txResp.Succeeded {
-		return fmt.Errorf("transaction did not succeed")
+		return ErrUpdateUnsuccessful
 	}
 
 	return nil
@@ -163,6 +164,8 @@ func (c *CalculationStore) Get(ctx context.Context, name string) (Calculation, e
 	if err := json.Unmarshal(getResp.Kvs[0].Value, &calc); err != nil {
 		return calc, fmt.Errorf("error unmarshaling calculation: %w", err)
 	}
+
+	calc.Metadata.Version = getResp.Kvs[0].Version
 
 	return calc, err
 }
