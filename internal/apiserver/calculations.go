@@ -113,9 +113,21 @@ func (c *Calculations) GetOperation(
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
+	metadata := &pb.CalculationMetadata{
+		Created: timestamppb.New(calc.Metadata.Created),
+	}
+	if calc.Metadata.Started != nil {
+		metadata.Started = timestamppb.New(*calc.Metadata.Started)
+	}
+	metadataAsAnyPB, err := anypb.New(metadata)
+	if err != nil {
+		log.Printf("error marshaling calculation %q metadata to proto: %s", calc.Name, err)
+	}
+
 	op := &longrunningpb.Operation{
-		Name: calc.Name,
-		Done: calc.Done,
+		Name:     calc.Name,
+		Metadata: metadataAsAnyPB,
+		Done:     calc.Done,
 	}
 
 	if calc.Error != nil {
