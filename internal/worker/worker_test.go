@@ -19,6 +19,15 @@ type storeSpy struct {
 	setStartedName string
 	setStartedTime time.Time
 	setStartedErr  error
+
+	getFunc func(context.Context, string) (store.Calculation, error)
+}
+
+func (s *storeSpy) Get(ctx context.Context, name string) (store.Calculation, error) {
+	if s.getFunc == nil {
+		panic("unimplemented")
+	}
+	return s.getFunc(ctx, name)
 }
 
 func (s *storeSpy) SetStartedTime(ctx context.Context, name string, t time.Time) error {
@@ -43,6 +52,15 @@ func FibonacciOfJobJSON(t *testing.T, j worker.FibonacciOfJob) []byte {
 
 func TestFibOfWorker_Successful(t *testing.T) {
 	fakeStore := &storeSpy{}
+	fakeStore.getFunc = func(context.Context, string) (store.Calculation, error) {
+		return store.Calculation{
+			Name: "george",
+			Metadata: store.CalculationMetadata{
+				Created: time.Now(),
+				Version: 1,
+			},
+		}, nil
+	}
 
 	job := worker.FibonacciOfJob{
 		OperationName: "george",
@@ -96,6 +114,15 @@ func TestFibOfWorker_Successful(t *testing.T) {
 
 func TestFibOfWorker_Error(t *testing.T) {
 	fakeStore := &storeSpy{}
+	fakeStore.getFunc = func(context.Context, string) (store.Calculation, error) {
+		return store.Calculation{
+			Name: "george",
+			Metadata: store.CalculationMetadata{
+				Created: time.Now(),
+				Version: 1,
+			},
+		}, nil
+	}
 
 	job := worker.FibonacciOfJob{
 		OperationName: "george",
@@ -136,6 +163,15 @@ func TestFibOfWorker_Error(t *testing.T) {
 
 func TestFibOfWorker_SetsStartedTime(t *testing.T) {
 	fakeStore := &storeSpy{}
+	fakeStore.getFunc = func(context.Context, string) (store.Calculation, error) {
+		return store.Calculation{
+			Name: "george",
+			Metadata: store.CalculationMetadata{
+				Created: time.Now(),
+				Version: 1,
+			},
+		}, nil
+	}
 
 	job := worker.FibonacciOfJob{
 		OperationName: "george",

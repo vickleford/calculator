@@ -10,6 +10,9 @@ import (
 type CalculationMetadata struct {
 	Created time.Time  `json:"created"`
 	Started *time.Time `json:"started,omitempty"`
+
+	// Version carries the version identifier stored of the Calculation.
+	Version int64 `json:"-"`
 }
 
 type CalculationError struct {

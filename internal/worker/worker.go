@@ -33,6 +33,7 @@ type FibOfHandler struct {
 }
 
 type datastore interface {
+	Get(context.Context, string) (store.Calculation, error)
 	Save(context.Context, store.Calculation) error
 	SetStartedTime(context.Context, string, time.Time) error
 }
@@ -72,11 +73,13 @@ func (w *FibOfHandler) Handle(ctx context.Context, payload []byte) error {
 	c := calculators.NewFibonacci(job.First, job.Second)
 	solution, jobErr := c.NumberAtPosition(job.Position)
 
-	calculation := store.Calculation{
-		Name: job.OperationName,
-		// TODO: Completion time.
-		Done: true,
+	calculation, err := w.datastore.Get(ctx, job.OperationName)
+	if err != nil {
+		return fmt.Errorf("error getting calculation from store: %w", err)
 	}
+
+	calculation.Done = true
+	// TODO: add job completed time.
 
 	if jobErr != nil {
 		log.Printf("error processing calculation %q: %s", job.OperationName, jobErr)
