@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -125,10 +126,20 @@ func (c *Calculations) GetOperation(
 		var resp *anypb.Any
 		var err error
 
-		switch v := calc.Result.(type) {
-		case *pb.FibonacciOfResponse:
-			resp, err = anypb.New(v)
+		result := store.FibonacciOfResult{}
+		if err := json.Unmarshal(calc.Result, &result); err != nil {
+			log.Printf("error unmarshaling calculation result: %s", err)
+			return nil, status.Error(codes.Internal, "unsupported calculation result type")
 		}
+
+		fibonacciOfResponse := &pb.FibonacciOfResponse{
+			First:       result.First,
+			Second:      result.Second,
+			NthPosition: result.Position,
+			Result:      result.Result,
+		}
+
+		resp, err = anypb.New(fibonacciOfResponse)
 		if err != nil {
 			log.Printf("error setting calculation result to Any: %s", err)
 			return nil, status.Error(codes.Internal, "internal error")
