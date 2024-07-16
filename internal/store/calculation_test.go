@@ -128,10 +128,13 @@ func TestSaveCalculation_WhenKeyDoesNotExist(t *testing.T) {
 }
 
 func TestSaveCalculation_WhenKeyExists(t *testing.T) {
+	created := time.Now().Add(-10 * time.Second)
+	started := time.Now()
 	calculation := store.Calculation{
 		Name: "some-operation-name",
 		Metadata: store.CalculationMetadata{
-			Created: time.Now(),
+			Created: created,
+			Started: &started,
 		},
 	}
 
@@ -176,6 +179,24 @@ func TestSaveCalculation_WhenKeyExists(t *testing.T) {
 		}
 		if key := string(actual.KeyBytes()); key != expectedKey {
 			t.Errorf("expected key %q but saw %q", expectedKey, key)
+		}
+		if actual.ValueBytes() == nil {
+			t.Errorf("expected a nil value to have been written")
+		}
+		if value := actual.ValueBytes(); value != nil {
+			savedCalculation := new(store.Calculation)
+			if err := json.Unmarshal(value, savedCalculation); err != nil {
+				t.Errorf("error unmarshaling value written to Calculation: %s", err)
+			}
+			if savedCalculation.Name != calculation.Name {
+				t.Errorf("expected %q but got %q", calculation.Name, savedCalculation.Name)
+			}
+			if !created.Equal(savedCalculation.Metadata.Created) {
+				t.Errorf("expected %q but got %q", created, savedCalculation.Metadata.Created)
+			}
+			if !started.Equal(*savedCalculation.Metadata.Started) {
+				t.Errorf("expected %q but got %q", started, *savedCalculation.Metadata.Started)
+			}
 		}
 	}
 }

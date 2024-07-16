@@ -19,6 +19,7 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	grpc_status "google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -178,6 +179,23 @@ func TestCalculations_GetOperation(t *testing.T) {
 				if op.Done {
 					t.Errorf("expected Done to be false")
 				}
+
+				if op.Metadata == nil {
+					t.Errorf("expected metadata to be present")
+				}
+				actualMetadata := new(pb.CalculationMetadata)
+				if err := anypb.UnmarshalTo(op.Metadata, actualMetadata, proto.UnmarshalOptions{}); err != nil {
+					t.Errorf("asdfljksfdljkfsd %s", err)
+				} else {
+					if !createdAt.Equal(actualMetadata.Created.AsTime()) {
+						t.Errorf("expected created time %q but got %q",
+							createdAt, actualMetadata.Created.AsTime())
+					}
+					if actualMetadata.Started != nil {
+						t.Errorf("expected nil started time but got %q",
+							actualMetadata.Started.AsTime())
+					}
+				}
 			},
 		},
 		{
@@ -208,6 +226,23 @@ func TestCalculations_GetOperation(t *testing.T) {
 
 				if !op.Done {
 					t.Error("operations with error should be marked done")
+				}
+
+				if op.Metadata == nil {
+					t.Errorf("expected metadata to be present")
+				}
+				actualMetadata := new(pb.CalculationMetadata)
+				if err := anypb.UnmarshalTo(op.Metadata, actualMetadata, proto.UnmarshalOptions{}); err != nil {
+					t.Errorf("asdfljksfdljkfsd %s", err)
+				} else {
+					if !createdAt.Equal(actualMetadata.Created.AsTime()) {
+						t.Errorf("expected created time %q but got %q",
+							createdAt, actualMetadata.Created.AsTime())
+					}
+					if !startedAt.Equal(actualMetadata.Started.AsTime()) {
+						t.Errorf("expected started time %q but got %q",
+							startedAt, actualMetadata.Started.AsTime())
+					}
 				}
 
 				if actual := op.GetError().Code; actual != int32(code.Code_ABORTED) {
@@ -259,6 +294,23 @@ func TestCalculations_GetOperation(t *testing.T) {
 
 				if actual := op.GetError(); actual != nil {
 					t.Errorf("expected no error but got %#v", actual)
+				}
+
+				if op.Metadata == nil {
+					t.Errorf("expected metadata to be present")
+				}
+				actualMetadata := new(pb.CalculationMetadata)
+				if err := anypb.UnmarshalTo(op.Metadata, actualMetadata, proto.UnmarshalOptions{}); err != nil {
+					t.Errorf("asdfljksfdljkfsd %s", err)
+				} else {
+					if !createdAt.Equal(actualMetadata.Created.AsTime()) {
+						t.Errorf("expected created time %q but got %q",
+							createdAt, actualMetadata.Created.AsTime())
+					}
+					if !startedAt.Equal(actualMetadata.Started.AsTime()) {
+						t.Errorf("expected started time %q but got %q",
+							startedAt, actualMetadata.Started.AsTime())
+					}
 				}
 
 				if op.GetResponse() == nil {
