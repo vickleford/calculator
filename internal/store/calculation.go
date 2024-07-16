@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"time"
 
 	"google.golang.org/genproto/googleapis/rpc/status"
@@ -16,13 +17,6 @@ type CalculationError struct {
 	Details []string `json:"details"` // todo: revisit this.
 }
 
-type FibonacciOfResult struct {
-	Position int64 `json:"position"`
-	First    int64 `json:"first"`
-	Second   int64 `json:"second"`
-	Result   int64 `json:"result"`
-}
-
 type Calculation struct {
 	Name     string              `json:"name"`
 	Metadata CalculationMetadata `json:"metadata"`
@@ -33,5 +27,12 @@ type Calculation struct {
 	Error *status.Status `json:"error,omitempty"`
 	// Response is mutually exclusive with Error. It should only be set whe done
 	// is true.
-	Result any `json:"result,omitempty"` // todo: could this instead use generics?
+	Result json.RawMessage `json:"result,omitempty"` // todo: could this instead use generics?
+}
+
+type FibonacciOfResult struct {
+	Position int64 `json:"position"`
+	First    int64 `json:"first"`
+	Second   int64 `json:"second"`
+	Result   int64 `json:"result"`
 }

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/vickleford/calculator/internal/calculators"
-	"github.com/vickleford/calculator/internal/pb"
 	"github.com/vickleford/calculator/internal/store"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
@@ -71,7 +70,7 @@ func (w *FibOfHandler) Handle(ctx context.Context, payload []byte) error {
 	}
 
 	c := calculators.NewFibonacci(job.First, job.Second)
-	result, jobErr := c.NumberAtPosition(job.Position)
+	solution, jobErr := c.NumberAtPosition(job.Position)
 
 	calculation := store.Calculation{
 		Name: job.OperationName,
@@ -93,12 +92,17 @@ func (w *FibOfHandler) Handle(ctx context.Context, payload []byte) error {
 
 		calculation.Error = state
 	} else {
-		calculation.Result = &pb.FibonacciOfResponse{
-			First:       job.First,
-			Second:      job.Second,
-			NthPosition: job.Position,
-			Result:      result,
+		result := store.FibonacciOfResult{
+			First:    job.First,
+			Second:   job.Second,
+			Position: job.Position,
+			Result:   solution,
 		}
+		b, err := json.Marshal(result)
+		if err != nil {
+			return fmt.Errorf("error marshaling result: %w", err)
+		}
+		calculation.Result = b
 	}
 
 	err = Retry(ctx, func() error {

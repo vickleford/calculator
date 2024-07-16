@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/vickleford/calculator/internal/calculators"
-	"github.com/vickleford/calculator/internal/pb"
 	"github.com/vickleford/calculator/internal/store"
 	"github.com/vickleford/calculator/internal/worker"
 	"google.golang.org/grpc/codes"
@@ -73,9 +72,9 @@ func TestFibOfWorker_Successful(t *testing.T) {
 		t.Fatalf("expected result to be set but it was nil")
 	}
 
-	res, ok := fakeStore.saved.Result.(*pb.FibonacciOfResponse)
-	if !ok {
-		t.Fatalf("result was an unexpected type: %T", fakeStore.saved.Result)
+	res := store.FibonacciOfResult{}
+	if err := json.Unmarshal(fakeStore.saved.Result, &res); err != nil {
+		t.Fatalf("unable to unmarshal result: %s", err)
 	}
 
 	if res.First != job.First {
@@ -86,8 +85,8 @@ func TestFibOfWorker_Successful(t *testing.T) {
 		t.Errorf("expected %d but got %d", job.Second, res.Second)
 	}
 
-	if res.NthPosition != job.Position {
-		t.Errorf("expected %d but got %d", job.Position, res.NthPosition)
+	if res.Position != job.Position {
+		t.Errorf("expected %d but got %d", job.Position, res.Position)
 	}
 
 	if res.Result != 3 {

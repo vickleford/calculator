@@ -134,11 +134,15 @@ func TestCalculations_GetOperation(t *testing.T) {
 	startedAt := time.Now().Add(-25 * time.Second)
 	opName := uuid.New().String()
 
-	fibOfResponse := &pb.FibonacciOfResponse{
-		First:       0,
-		Second:      1,
-		NthPosition: 6,
-		Result:      5,
+	fibOfResponse := store.FibonacciOfResult{
+		First:    0,
+		Second:   1,
+		Position: 6,
+		Result:   5,
+	}
+	fibOfResponseBytes, err := json.Marshal(fibOfResponse)
+	if err != nil {
+		t.Fatalf("unable to set up test with FibOfResponse raw json: %s", err)
 	}
 
 	retry := &errdetails.RetryInfo{RetryDelay: &durationpb.Duration{Seconds: 15}}
@@ -237,7 +241,7 @@ func TestCalculations_GetOperation(t *testing.T) {
 						Started: &startedAt,
 					},
 					Done:   true,
-					Result: fibOfResponse,
+					Result: fibOfResponseBytes,
 				}, nil
 			},
 			assert: func(t *testing.T, op *longrunningpb.Operation, err error) {
@@ -277,9 +281,9 @@ func TestCalculations_GetOperation(t *testing.T) {
 						fibOfResponse.Second,
 						actual.Second)
 				}
-				if actual.NthPosition != fibOfResponse.NthPosition {
+				if actual.NthPosition != fibOfResponse.Position {
 					t.Errorf("expected nth position to be %d but was %d",
-						fibOfResponse.NthPosition,
+						fibOfResponse.Position,
 						actual.NthPosition)
 				}
 				if actual.Result != fibOfResponse.Result {
