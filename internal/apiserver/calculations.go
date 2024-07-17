@@ -104,6 +104,10 @@ func (c *Calculations) GetOperation(
 	ctx context.Context,
 	req *longrunningpb.GetOperationRequest,
 ) (*longrunningpb.Operation, error) {
+	if err := validateGetOperationRequest(req); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	calc, err := c.store.Get(ctx, req.Name)
 	if errors.Is(err, store.ErrKeyNotFound) {
 		return nil, status.Error(codes.NotFound,
