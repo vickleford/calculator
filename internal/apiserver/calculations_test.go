@@ -133,7 +133,7 @@ func TestFibonacciOf_Create(t *testing.T) {
 func TestCalculations_GetOperation(t *testing.T) {
 	createdAt := time.Now().Add(-30 * time.Second)
 	startedAt := time.Now().Add(-25 * time.Second)
-	opName := uuid.New().String()
+	defaultRequest := &longrunningpb.GetOperationRequest{Name: uuid.New().String()}
 
 	fibOfResponse := store.FibonacciOfResult{
 		First:    0,
@@ -153,7 +153,12 @@ func TestCalculations_GetOperation(t *testing.T) {
 	}
 
 	tests := []struct {
-		Name    string
+		// Name names the subtest.
+		Name string
+		// Req is an alternative request to make. If it is nil, a valid default
+		// request will be provided.
+		Req *longrunningpb.GetOperationRequest
+		// GetFunc stubs the datstore's Get func.
 		GetFunc func(context.Context, string) (store.Calculation, error)
 		assert  func(*testing.T, *longrunningpb.Operation, error)
 	}{
@@ -172,8 +177,8 @@ func TestCalculations_GetOperation(t *testing.T) {
 					t.Errorf("unexpected error: %s", err)
 				}
 
-				if op.Name != opName {
-					t.Errorf("expected name %q but got %q", opName, op.Name)
+				if op.Name != defaultRequest.Name {
+					t.Errorf("expected name %q but got %q", defaultRequest.Name, op.Name)
 				}
 
 				if op.Done {
@@ -220,8 +225,8 @@ func TestCalculations_GetOperation(t *testing.T) {
 					t.Errorf("unexpected error: %s", err)
 				}
 
-				if op.Name != opName {
-					t.Errorf("expected name %q but got %q", opName, op.Name)
+				if op.Name != defaultRequest.Name {
+					t.Errorf("expected name %q but got %q", defaultRequest.Name, op.Name)
 				}
 
 				if !op.Done {
@@ -284,8 +289,8 @@ func TestCalculations_GetOperation(t *testing.T) {
 					t.Errorf("unexpected error: %s", err)
 				}
 
-				if op.Name != opName {
-					t.Errorf("expected name %q but got %q", opName, op.Name)
+				if op.Name != defaultRequest.Name {
+					t.Errorf("expected name %q but got %q", defaultRequest.Name, op.Name)
 				}
 
 				if !op.Done {
@@ -364,7 +369,7 @@ func TestCalculations_GetOperation(t *testing.T) {
 					t.Errorf("unexpected code: %s", statusErr.Code())
 				}
 
-				expected := fmt.Sprintf("could not find operation %q", opName)
+				expected := fmt.Sprintf("could not find operation %q", defaultRequest.Name)
 				if actual := statusErr.Message(); actual != expected {
 					t.Errorf("unexpected message: %q", actual)
 				}
@@ -394,6 +399,31 @@ func TestCalculations_GetOperation(t *testing.T) {
 				}
 			},
 		},
+		{
+			Name: "OperationNameMustBeUUID",
+			Req:  &longrunningpb.GetOperationRequest{Name: "george"},
+			GetFunc: func(ctx context.Context, key string) (store.Calculation, error) {
+				return store.Calculation{}, nil
+			},
+			assert: func(t *testing.T, op *longrunningpb.Operation, err error) {
+				if op != nil {
+					t.Errorf("expected nil op")
+				}
+
+				statusErr, ok := grpc_status.FromError(err)
+				if !ok {
+					t.Errorf("expected a gRPC status error")
+				}
+
+				if statusErr.Code() != codes.InvalidArgument {
+					t.Errorf("unexpected code: %s", statusErr.Code())
+				}
+
+				if actual := statusErr.Message(); actual != "operation name must be a UUID" {
+					t.Errorf("got unexpected error message: %q", actual)
+				}
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -408,7 +438,10 @@ func TestCalculations_GetOperation(t *testing.T) {
 
 			server := apiserver.NewCalculations(mockStore, nil)
 
-			req := &longrunningpb.GetOperationRequest{Name: opName}
+			req := test.Req
+			if test.Req == nil {
+				req = defaultRequest
+			}
 
 			response, err := server.GetOperation(context.Background(), req)
 
